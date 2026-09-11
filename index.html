@@ -16,7 +16,7 @@
     background: var(--bg); color: var(--text);
     font-family: 'Segoe UI', system-ui, sans-serif;
     min-height: 100vh; display: flex; flex-direction: column;
-    align-items: center; padding: 24px 16px;
+    align-items: center; padding: 24px 16px; -webkit-tap-highlight-color: transparent;
   }
   header { text-align: center; margin-bottom: 28px; }
   header .logo {
@@ -156,9 +156,9 @@
   <div class="field">
     <label>Status kehadiran</label>
     <select id="inputStatus">
-      <option value="Hadir">✅ Hadir</option>
-      <option value="Izin">📄 Izin</option>
-      <option value="Sakit">🏥 Sakit</option>
+      <option value="Hadir">Hadir</option>
+      <option value="Izin">Izin</option>
+      <option value="Sakit">Sakit</option>
     </select>
   </div>
   <div class="field">
@@ -191,10 +191,10 @@
 
 <script>
 // =============================================
-// ⚙️ KONFIGURASI — hanya 2 yang perlu diisi
+// KONFIGURASI — hanya 2 yang perlu diisi
 // =============================================
 var CONFIG = {
-  SCRIPT_URL:      "https://script.google.com/macros/s/AKfycbzR1GuCuGv2KCQpW01GM1Ar4qNykbg51pYyg_0RlBRLBt_FuVkVD2WKnrfY8v020te5/exec",
+  SCRIPT_URL:      "https://script.google.com/macros/s/AKfycbzgWJOzgesXOb9rhEj9QhEmw-VwzjB7Sug_MkKpsd06lqEb4TE2bRxIhYWV3rpaUUqG3w/exec",
   NAMA_INSTITUSI:  "Universitas Malikussaleh",
   DEBUG_MODE:      false,  // true = bypass waktu & GPS
 };
@@ -235,13 +235,13 @@ function muatSesi() {
         cekWaktu(new Date());
         cekLokasi();
       } else {
-        tampilAlert('alertBox', 'warn', '⏳ Belum ada sesi absen yang aktif. Hubungi dosen untuk mengaktifkan sesi.');
+        tampilAlert('alertBox', 'warn', 'Belum ada sesi absen yang aktif. Hubungi dosen untuk mengaktifkan sesi.');
         document.getElementById('badgeWaktu').className = 'status-badge err';
         document.getElementById('statusWaktu').textContent = 'Tidak ada sesi';
       }
     })
     .catch(function(e) {
-      tampilAlert('alertBox', 'warn', '⚠️ Gagal memuat sesi: ' + e.message);
+      tampilAlert('alertBox', 'warn', 'Gagal memuat sesi: ' + e.message);
     });
 }
 
@@ -276,7 +276,7 @@ function cekWaktu(now) {
     var ms = pad(sesiAktif.jamMulai)+':'+pad(sesiAktif.menitMulai);
     var ss = pad(sesiAktif.jamSelesai)+':'+pad(sesiAktif.menitSelesai);
     stat.textContent = ms + '–' + ss;
-    tampilAlert('alertBox', 'warn', '⏰ Absensi hanya dibuka pukul '+ms+' – '+ss+'.');
+    tampilAlert('alertBox', 'warn', 'Absensi hanya dibuka pukul '+ms+' – '+ss+'.');
     document.getElementById('formCard').style.display = 'none';
   }
 }
@@ -300,7 +300,7 @@ function cekLokasi() {
   if (!navigator.geolocation) {
     badge.className = 'status-badge err';
     stat.textContent = 'Tidak didukung';
-    tampilAlert('alertBox', 'danger', '❌ Browser tidak mendukung GPS.');
+    tampilAlert('alertBox', 'danger', 'Browser tidak mendukung GPS.');
     return;
   }
 
@@ -347,8 +347,8 @@ function bukaKonfirmasi() {
   var ket    = document.getElementById('inputKet').value.trim();
   var alertForm = document.getElementById('alertForm');
 
-  if (!nama) { alertForm.className='alert alert-warn show'; alertForm.textContent='⚠️ Nama lengkap wajib diisi.'; return; }
-  if (!nim)  { alertForm.className='alert alert-warn show'; alertForm.textContent='⚠️ NIM / NIS wajib diisi.'; return; }
+  if (!nama) { alertForm.className='alert alert-warn show'; alertForm.textContent='Nama lengkap wajib diisi.'; return; }
+  if (!nim)  { alertForm.className='alert alert-warn show'; alertForm.textContent='NIM / NIS wajib diisi.'; return; }
   alertForm.className = 'alert';
 
   document.getElementById('cNama').textContent   = nama;
@@ -398,7 +398,7 @@ function submitAbsen() {
       tutupKonfirmasi();
       if (res.status === 'ok') {
         document.getElementById('formCard').style.display = 'none';
-        tampilAlert('alertBox', 'success', '✅ Absensi berhasil! Halo '+payload.nama+', kehadiranmu sudah tercatat.');
+        tampilAlert('alertBox', 'success', 'Absensi berhasil! Halo '+payload.nama+', kehadiranmu sudah tercatat.');
       } else {
         throw new Error(res.message);
       }
@@ -407,7 +407,7 @@ function submitAbsen() {
       tutupKonfirmasi();
       var af = document.getElementById('alertForm');
       af.className = 'alert alert-danger show';
-      af.textContent = '❌ Gagal: ' + e.message;
+      af.textContent = 'Gagal: ' + e.message;
       btnKirim.disabled = false;
       btnKirim.textContent = 'Ya, kirim';
     });

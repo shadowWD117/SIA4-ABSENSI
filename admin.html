@@ -12,7 +12,7 @@
     --success: #22c55e; --danger: #ef4444; --warn: #f59e0b;
     --text: #e8eaf0; --muted: #8891a8; --radius: 14px;
   }
-  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; -webkit-tap-highlight-color: transparent;}
 
   /* LOGIN */
   #loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
@@ -110,7 +110,7 @@
 <!-- LOGIN -->
 <div id="loginScreen">
   <div class="login-card">
-    <div class="icon">🔐</div>
+    <div class="icon"></div>
     <h2>Admin Absensi</h2>
     <p>Masuk untuk mengelola absensi</p>
     <div id="alertLogin" class="alert alert-danger"></div>
@@ -125,17 +125,17 @@
 <!-- DASHBOARD -->
 <div id="dashboard">
   <div class="topbar">
-    <h1>📊 Dashboard Absensi</h1>
+    <h1>Dashboard Absensi</h1>
     <div class="topbar-right">
-      <button class="btn btn-ghost" onclick="muatData()">🔄 Refresh</button>
+      <button class="btn btn-ghost" onclick="muatData()">Refresh</button>
       <button class="btn btn-danger" onclick="doLogout()">Keluar</button>
     </div>
   </div>
 
   <!-- TABS -->
   <div class="tabs">
-    <div class="tab active" onclick="bukaTab('tabData', this)">📋 Data Absensi</div>
-    <div class="tab" onclick="bukaTab('tabSesi', this)">⚙️ Kelola Sesi</div>
+    <div class="tab active" onclick="bukaTab('tabData', this)">Data Absensi</div>
+    <div class="tab" onclick="bukaTab('tabSesi', this)">Kelola Sesi</div>
   </div>
 
   <!-- TAB: DATA ABSENSI -->
@@ -149,7 +149,7 @@
         <div class="stat-card"><div class="num num-sakit" id="statSakit">—</div><div class="lbl">Sakit</div></div>
       </div>
       <div class="filter-row">
-        <input type="text" id="filterCari" placeholder="🔍 Cari nama atau NIM..." oninput="filterData()">
+        <input type="text" id="filterCari" placeholder="Cari nama atau NIM..." oninput="filterData()">
         <select id="filterStatus" onchange="filterData()">
           <option value="">Semua status</option>
           <option value="Hadir">Hadir</option>
@@ -159,7 +159,17 @@
         <select id="filterSesi" onchange="filterData()">
           <option value="">Semua sesi</option>
         </select>
-        <button class="btn btn-primary" onclick="exportCSV()">⬇️ CSV</button>
+        <button class="btn btn-primary" onclick="exportCSV()">CSV</button>
+        <select id="pilihanSalin" style="background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;outline:none;">
+          <optgroup label="— Per status —">
+            <option value="status:semua">Semua status</option>
+            <option value="status:Hadir">Hadir saja</option>
+            <option value="status:Izin">Izin saja</option>
+            <option value="status:Sakit">Sakit saja</option>
+          </optgroup>
+          <optgroup label="— Per sesi —" id="optgroupSesi"></optgroup>
+        </select>
+        <button class="btn btn-ghost" onclick="salinDaftar()">Salin</button>
       </div>
       <div class="table-wrap">
         <div id="loadingSpinner">Memuat data...</div>
@@ -170,7 +180,7 @@
           <tbody id="tbodyAbsen"></tbody>
         </table>
         <div id="emptyState" class="empty-state" style="display:none;">
-          <div class="icon">📭</div><p>Belum ada data absensi</p>
+          <div class="icon"></div><p>Belum ada data absensi</p>
         </div>
       </div>
     </div>
@@ -185,7 +195,7 @@
 
       <!-- Form set sesi baru -->
       <div class="sesi-card">
-        <h3>🗓️ Aktifkan sesi baru</h3>
+        <h3>Aktifkan sesi baru</h3>
         <div id="alertSesi" class="alert"></div>
         <div class="form-grid">
           <div class="field full">
@@ -228,7 +238,7 @@
         </div>
         <div style="margin-top:16px;">
           <button class="btn btn-success btn-full" id="btnSimpanSesi" onclick="simpanSesi()">
-            ✅ Aktifkan sesi ini
+            Aktifkan sesi ini
           </button>
         </div>
       </div>
@@ -239,7 +249,7 @@
 
 <script>
 var ADMIN_CONFIG = {
-  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzR1GuCuGv2KCQpW01GM1Ar4qNykbg51pYyg_0RlBRLBt_FuVkVD2WKnrfY8v020te5/exec",
+  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzgWJOzgesXOb9rhEj9QhEmw-VwzjB7Sug_MkKpsd06lqEb4TE2bRxIhYWV3rpaUUqG3w/exec",
   PASSWORD: "admin123"
 };
 
@@ -256,7 +266,7 @@ function doLogin() {
     muatInfoSesi();
   } else {
     alertEl.className = 'alert alert-danger show';
-    alertEl.textContent = '❌ Password salah.';
+    alertEl.textContent = 'Password salah.';
   }
 }
 
@@ -294,7 +304,7 @@ function muatData() {
     })
     .catch(function(e) {
       spinner.style.display = 'none';
-      tampilAlert('alertDash', 'danger', '❌ Gagal memuat data: ' + e.message);
+      tampilAlert('alertDash', 'danger', 'Gagal memuat data: ' + e.message);
     });
 }
 
@@ -310,6 +320,15 @@ function isiFilterSesi(records) {
     sel.appendChild(opt);
   });
   sel.value = current;
+  // Isi juga optgroup salin per sesi
+  var og = document.getElementById('optgroupSesi');
+  og.innerHTML = '';
+  Object.keys(sesiSet).forEach(function(s) {
+    var opt = document.createElement('option');
+    opt.value = 'sesi:' + s;
+    opt.textContent = s;
+    og.appendChild(opt);
+  });
 }
 
 function hitungStat(records) {
@@ -372,6 +391,34 @@ function exportCSV() {
   a.click();
 }
 
+function salinDaftar() {
+  var filter = document.getElementById('pilihanSalin').value;
+  var parts  = filter.split(':');
+  var tipe   = parts[0];
+  var nilai  = parts[1];
+  var sumber;
+
+  if (tipe === 'status') {
+    sumber = nilai === 'semua' ? allRecords : allRecords.filter(function(d) { return d.status === nilai; });
+  } else if (tipe === 'sesi') {
+    sumber = allRecords.filter(function(d) { return d.sesi === nilai; });
+  } else {
+    sumber = allRecords;
+  }
+
+  if (!sumber.length) { alert('Tidak ada data untuk disalin.'); return; }
+
+  var teks = sumber.map(function(d, i) {
+    return (i + 1) + '. ' + (d.nama || '—') + ' (' + (d.nim || '—') + ')';
+  }).join('\n');
+
+  navigator.clipboard.writeText(teks).then(function() {
+    alert('Tersalin ' + sumber.length + ' data ke clipboard!');
+  }).catch(function() {
+    prompt('Salin teks di bawah ini:', teks);
+  });
+}
+
 // ── Kelola Sesi ───────────────────────────────
 function muatInfoSesi() {
   fetch(ADMIN_CONFIG.SCRIPT_URL + '?action=getSesi', { redirect: 'follow' })
@@ -385,12 +432,13 @@ function muatInfoSesi() {
         var ss2 = pad(s.jamSelesai)+':'+pad(s.menitSelesai);
         el.innerHTML =
           '<div class="sesi-aktif-info">'+
-          '<div class="judul">✅ Sesi sedang aktif</div>'+
+          '<div class="judul">Sesi sedang aktif</div>'+
           '<div class="sesi-detail-row"><span class="dk">Kelas</span><span class="dv">'+s.kelas+'</span></div>'+
           '<div class="sesi-detail-row"><span class="dk">Sesi</span><span class="dv">'+s.sesi+'</span></div>'+
           '<div class="sesi-detail-row"><span class="dk">Waktu</span><span class="dv">'+ms+' – '+ss2+'</span></div>'+
           '<div class="sesi-detail-row"><span class="dk">Radius</span><span class="dv">'+s.radius+' meter</span></div>'+
-          '</div>';
+          '<div style="margin-top:12px;"><button class="btn btn-danger" style="width:100%" onclick="nonaktifkanSesi()"> Nonaktifkan sesi ini</button></div>'+
+'</div>';
         // Isi form dengan nilai sesi aktif sebagai default
         document.getElementById('sKelas').value     = s.kelas;
         document.getElementById('sSesi').value      = s.sesi;
@@ -402,7 +450,7 @@ function muatInfoSesi() {
         document.getElementById('sLng').value       = s.lngPusat;
         document.getElementById('sRadius').value    = s.radius;
       } else {
-        el.innerHTML = '<div class="no-sesi">⚠️ Belum ada sesi yang aktif. Isi form di bawah untuk mengaktifkan sesi baru.</div>';
+        el.innerHTML = '<div class="no-sesi">Belum ada sesi yang aktif. Isi form di bawah untuk mengaktifkan sesi baru.</div>';
       }
     })
     .catch(function() {});
@@ -423,7 +471,7 @@ function simpanSesi() {
 
   if (!kelas || !sesi || !lat || !lng) {
     alertSesi.className = 'alert alert-warn show';
-    alertSesi.textContent = '⚠️ Kelas, sesi, dan koordinat GPS wajib diisi.';
+    alertSesi.textContent = 'Kelas, sesi, dan koordinat GPS wajib diisi.';
     return;
   }
 
@@ -448,7 +496,7 @@ function simpanSesi() {
       var res = JSON.parse(t);
       if (res.status === 'ok') {
         alertSesi.className = 'alert alert-success show';
-        alertSesi.textContent = '✅ Sesi berhasil diaktifkan! Siswa sekarang bisa absen.';
+        alertSesi.textContent = 'Sesi berhasil diaktifkan! Siswa sekarang bisa absen.';
         muatInfoSesi();
       } else { throw new Error(res.message); }
     })
@@ -457,7 +505,19 @@ function simpanSesi() {
       alertSesi.textContent = '❌ Gagal: ' + e.message;
     })
     .finally(function() {
-      btn.disabled = false; btn.textContent = '✅ Aktifkan sesi ini';
+      btn.disabled = false; btn.textContent = 'Aktifkan sesi ini';
+    });
+}
+
+function nonaktifkanSesi() {
+  if (!confirm('Yakin ingin menonaktifkan sesi? Siswa tidak akan bisa absen.')) return;
+  var url = ADMIN_CONFIG.SCRIPT_URL + '?action=setSesi&kelas=&sesi=&jamMulai=0&menitMulai=0&jamSelesai=0&menitSelesai=0&latPusat=0&lngPusat=0&radius=0&nonaktif=1';
+  fetch(url, { redirect: 'follow' })
+    .then(function(r) { return r.text(); })
+    .then(function() {
+      document.getElementById('alertSesi').className = 'alert alert-success show';
+      document.getElementById('alertSesi').textContent = 'Sesi berhasil dinonaktifkan.';
+      muatInfoSesi();
     });
 }
 
