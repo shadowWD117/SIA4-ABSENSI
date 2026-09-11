@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Admin Absensi</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --border: #2a2d3a;
+    --accent: #4f8ef7;
+    --accent2: #7c6af7;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --warn: #f59e0b;
+    --text: #e8eaf0;
+    --muted: #8891a8;
+    --radius: 14px;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+  }
+
+  /* LOGIN */
+  #loginScreen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .login-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 36px 32px;
+    width: 100%;
+    max-width: 360px;
+    text-align: center;
+  }
+  .login-card .icon { font-size: 40px; margin-bottom: 12px; }
+  .login-card h2 { font-size: 20px; margin-bottom: 6px; }
+  .login-card p { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+
+  /* DASHBOARD */
+  #dashboard { display: none; }
+  .topbar {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .topbar h1 { font-size: 18px; font-weight: 600; }
+  .topbar-right { display: flex; gap: 10px; align-items: center; }
+
+  .content { padding: 24px; max-width: 1100px; margin: 0 auto; }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 16px;
+  }
+  .stat-card .num { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+  .stat-card .lbl { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .num-hadir { color: var(--success); }
+  .num-izin { color: var(--accent); }
+  .num-sakit { color: var(--warn); }
+  .num-total { color: var(--text); }
+
+  .filter-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .filter-row input, .filter-row select {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+  }
+  .filter-row input:focus, .filter-row select:focus { border-color: var(--accent); }
+  .filter-row input { flex: 1; min-width: 160px; }
+
+  .btn {
+    padding: 9px 18px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    font-family: inherit;
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-danger { background: rgba(239,68,68,0.15); color: var(--danger); border: 1px solid rgba(239,68,68,0.3); }
+  .btn-ghost { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+
+  .table-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow-x: auto;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge-hadir { background: rgba(34,197,94,0.15); color: var(--success); }
+  .badge-izin { background: rgba(79,142,247,0.15); color: var(--accent); }
+  .badge-sakit { background: rgba(245,158,11,0.15); color: var(--warn); }
+
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--muted);
+  }
+  .empty-state .icon { font-size: 36px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; }
+
+  .alert {
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .alert.show { display: block; }
+  .alert-danger { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #f87171; }
+  .alert-success { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: #4ade80; }
+
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 5px; }
+  .field input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 11px 14px;
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+  }
+  .field input:focus { border-color: var(--accent); }
+
+  #loadingSpinner {
+    text-align: center;
+    padding: 40px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="icon">🔐</div>
+    <h2>Admin Absensi</h2>
+    <p>Masuk untuk melihat data absensi</p>
+    <div id="alertLogin" class="alert alert-danger"></div>
+    <div class="field">
+      <label>Password admin</label>
+      <input type="password" id="inputPass" placeholder="Masukkan password" onkeydown="if(event.key==='Enter')login()">
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:12px;" onclick="login()">Masuk</button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div class="topbar">
+    <h1>📊 Dashboard Absensi</h1>
+    <div class="topbar-right">
+      <button class="btn btn-ghost" onclick="muatData()">🔄 Refresh</button>
+      <button class="btn btn-danger" onclick="logout()">Keluar</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div id="alertDash" class="alert"></div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="num num-total" id="statTotal">—</div>
+        <div class="lbl">Total absen</div>
+      </div>
+      <div class="stat-card">
+        <div class="num num-hadir" id="statHadir">—</div>
+        <div class="lbl">Hadir</div>
+      </div>
+      <div class="stat-card">
+        <div class="num num-izin" id="statIzin">—</div>
+        <div class="lbl">Izin</div>
+      </div>
+      <div class="stat-card">
+        <div class="num num-sakit" id="statSakit">—</div>
+        <div class="lbl">Sakit</div>
+      </div>
+    </div>
+
+    <div class="filter-row">
+      <input type="text" id="filterCari" placeholder="🔍 Cari nama atau NIM..." oninput="filterData()">
+      <select id="filterStatus" onchange="filterData()">
+        <option value="">Semua status</option>
+        <option value="Hadir">Hadir</option>
+        <option value="Izin">Izin</option>
+        <option value="Sakit">Sakit</option>
+      </select>
+      <button class="btn btn-primary" onclick="exportCSV()">⬇️ Export CSV</button>
+    </div>
+
+    <div class="table-wrap">
+      <div id="loadingSpinner">Memuat data...</div>
+      <table id="tabelAbsen" style="display:none;">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Waktu</th>
+            <th>Nama</th>
+            <th>NIM/NIS</th>
+            <th>Kelas</th>
+            <th>Sesi</th>
+            <th>Status</th>
+            <th>Keterangan</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyAbsen"></tbody>
+      </table>
+      <div id="emptyState" class="empty-state" style="display:none;">
+        <div class="icon">📭</div>
+        <p>Belum ada data absensi</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================
+// ⚙️ KONFIGURASI ADMIN — SESUAIKAN
+// =============================================
+const ADMIN_CONFIG = {
+  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwLuizePSSf0cV7hznlntnCYQ8FF38jYbbohOWyfMzb_zjOqI57eGu2YxmO8_t-zkqeRQ/exec",
+  PASSWORD: "admin123",  // ganti password ini!
+};
+// =============================================
+
+let allData = [];
+
+function login() {
+  const pass = document.getElementById('inputPass').value;
+  const alertEl = document.getElementById('alertLogin');
+  if (pass === ADMIN_CONFIG.PASSWORD) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    muatData();
+  } else {
+    alertEl.className = 'alert alert-danger show';
+    alertEl.textContent = '❌ Password salah. Coba lagi.';
+  }
+}
+
+function logout() {
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('inputPass').value = '';
+}
+
+async function muatData() {
+  const spinner = document.getElementById('loadingSpinner');
+  const tabel = document.getElementById('tabelAbsen');
+  const alertDash = document.getElementById('alertDash');
+
+  spinner.style.display = 'block';
+  tabel.style.display = 'none';
+  alertDash.className = 'alert';
+
+  try {
+    const res = await fetch(`${ADMIN_CONFIG.SCRIPT_URL}?action=getAll`);
+    const data = await res.json();
+    if (data.status === 'ok') {
+      allData = data.records || [];
+      renderTabel(allData);
+      hitungStat(allData);
+    } else {
+      throw new Error(data.message || 'Gagal memuat');
+    }
+  } catch (e) {
+    spinner.style.display = 'none';
+    alertDash.className = 'alert alert-danger show';
+    alertDash.textContent = `❌ Gagal memuat data: ${e.message}`;
+  }
+}
+
+function hitungStat(data) {
+  document.getElementById('statTotal').textContent = data.length;
+  document.getElementById('statHadir').textContent = data.filter(d => d.status === 'Hadir').length;
+  document.getElementById('statIzin').textContent = data.filter(d => d.status === 'Izin').length;
+  document.getElementById('statSakit').textContent = data.filter(d => d.status === 'Sakit').length;
+}
+
+function renderTabel(data) {
+  const spinner = document.getElementById('loadingSpinner');
+  const tabel = document.getElementById('tabelAbsen');
+  const empty = document.getElementById('emptyState');
+  const tbody = document.getElementById('tbodyAbsen');
+
+  spinner.style.display = 'none';
+
+  if (!data.length) {
+    empty.style.display = 'block';
+    tabel.style.display = 'none';
+    return;
+  }
+
+  empty.style.display = 'none';
+  tabel.style.display = 'table';
+  tbody.innerHTML = '';
+
+  data.forEach((row, i) => {
+    const badgeClass = {
+      'Hadir': 'badge-hadir',
+      'Izin': 'badge-izin',
+      'Sakit': 'badge-sakit',
+    }[row.status] || '';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:var(--muted)">${i + 1}</td>
+      <td style="white-space:nowrap;font-size:12px;color:var(--muted)">${row.waktu || '—'}</td>
+      <td style="font-weight:500">${esc(row.nama)}</td>
+      <td style="font-family:monospace;font-size:13px">${esc(row.nim)}</td>
+      <td style="font-size:13px;color:var(--muted)">${esc(row.kelas)}</td>
+      <td style="font-size:13px;color:var(--muted)">${esc(row.sesi)}</td>
+      <td><span class="badge ${badgeClass}">${esc(row.status)}</span></td>
+      <td style="font-size:13px;color:var(--muted)">${esc(row.keterangan) || '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function filterData() {
+  const cari = document.getElementById('filterCari').value.toLowerCase();
+  const statusFilter = document.getElementById('filterStatus').value;
+  const filtered = allData.filter(d => {
+    const cocokCari = !cari || d.nama?.toLowerCase().includes(cari) || d.nim?.toLowerCase().includes(cari);
+    const cocokStatus = !statusFilter || d.status === statusFilter;
+    return cocokCari && cocokStatus;
+  });
+  renderTabel(filtered);
+  hitungStat(filtered);
+}
+
+function exportCSV() {
+  if (!allData.length) return;
+  const header = ['Waktu','Nama','NIM/NIS','Kelas','Sesi','Status','Keterangan'];
+  const rows = allData.map(d => [d.waktu, d.nama, d.nim, d.kelas, d.sesi, d.status, d.keterangan]);
+  const csv = [header, ...rows].map(r => r.map(v => `"${(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `absensi-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+function esc(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
