@@ -235,7 +235,7 @@ function muatSesi() {
         cekWaktu(new Date());
         cekLokasi();
       } else {
-        tampilAlert('alertBox', 'warn', 'Belum ada sesi absen yang aktif. Hubungi dosen untuk mengaktifkan sesi.');
+        tampilAlert('alertBox', 'warn', 'Belum ada sesi absen yang aktif. Hubungi admin untuk mengaktifkan sesi.');
         document.getElementById('badgeWaktu').className = 'status-badge err';
         document.getElementById('statusWaktu').textContent = 'Tidak ada sesi';
       }
