@@ -203,6 +203,7 @@ var CONFIG = {
 var sesiAktif = null;
 var statusWaktuOK = false;
 var statusLokasiOK = false;
+var lokasiSudahDicek = false;
 var userCoords = null;
 
 document.getElementById('namaInstitusi').textContent = CONFIG.NAMA_INSTITUSI;
@@ -325,6 +326,7 @@ function cekLokasi() {
     function(pos) {
       userCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       var jarak = Math.round(hitungJarak(userCoords.lat, userCoords.lng, sesiAktif.latPusat, sesiAktif.lngPusat));
+      lokasiSudahDicek = true;
       if (jarak <= sesiAktif.radius) {
         statusLokasiOK = true;
         badge.className = 'status-badge ok';
@@ -371,7 +373,11 @@ function onStatusChange() {
 
 function cekGabungan() {
   if (statusWaktuOK && statusLokasiOK) {
+    // Dalam zona: form muncul normal, hanya opsi Hadir
     document.getElementById('alertBox').className = 'alert';
+    document.getElementById('formCard').style.display = 'block';
+  } else if (statusWaktuOK && !statusLokasiOK && lokasiSudahDicek) {
+    // Luar zona: form tetap muncul, hanya opsi Izin/Sakit
     document.getElementById('formCard').style.display = 'block';
   }
 }
