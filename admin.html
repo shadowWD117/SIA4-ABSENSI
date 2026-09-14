@@ -129,7 +129,8 @@
   <div class="topbar">
     <h1>Dashboard Absensi</h1>
     <div class="topbar-right">
-      <button class="btn btn-ghost" onclick="muatData()">Refresh</button>
+      <button class="btn btn-ghost" onclick="muatData(true)">Refresh</button>
+      <button class="btn btn-ghost" onclick="muatData(false)">↺ Muat ulang</button>
       <button class="btn btn-danger" onclick="doLogout()">Keluar</button>
     </div>
   </div>
@@ -165,7 +166,7 @@
         <select id="pilihanSalin" style="background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;outline:none;">
           <optgroup label="— Per status —">
             <option value="status:semua">Semua status</option>
-            <option value="status:Hadir">Hadir saja</option>
+            <option value="status:Hadir" selected>Hadir saja</option>
             <option value="status:Izin">Izin saja</option>
             <option value="status:Sakit">Sakit saja</option>
           </optgroup>
@@ -253,11 +254,30 @@
 
 <script>
 var ADMIN_CONFIG = {
-  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzgWJOzgesXOb9rhEj9QhEmw-VwzjB7Sug_MkKpsd06lqEb4TE2bRxIhYWV3rpaUUqG3w/exec",
+  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbym4G5ebgS_Z2gZ4NEidEQ45kwCz4F1p6Sns43zezXXQKYN_lJRS6J-eQAl9JyAbzKpXg/exec",
   PASSWORD: "admin123"
 };
 
 var allRecords = [];
+var cachedTotal = 0;
+
+// ── Fetch helper dengan retry ─────────────────
+function fetchSafe(url, opsi, coba) {
+  coba = coba || 0;
+  return fetch(url, opsi || { redirect: 'follow' })
+    .then(function(r) { return r.text(); })
+    .then(function(t) {
+      if (t.trim().charAt(0) !== '{') {
+        if (coba < 2) return fetchSafe(url, opsi, coba + 1);
+        throw new Error('Server mengembalikan respons tidak valid. Coba refresh halaman.');
+      }
+      return JSON.parse(t);
+    })
+    .catch(function(e) {
+      if (coba < 2 && e.message.indexOf('tidak valid') === -1) return fetchSafe(url, opsi, coba + 1);
+      throw e;
+    });
+}
 
 // ── Auth ──────────────────────────────────────
 function doLogin() {
@@ -289,21 +309,49 @@ function bukaTab(id, el) {
 }
 
 // ── Data absensi ──────────────────────────────
-function muatData() {
+function muatData(incremental) {
   var spinner = document.getElementById('loadingSpinner');
   var tabel   = document.getElementById('tabelAbsen');
-  spinner.style.display = 'block';
-  tabel.style.display   = 'none';
 
-  fetch(ADMIN_CONFIG.SCRIPT_URL + '?action=getAll', { redirect: 'follow' })
-    .then(function(r) { return r.text(); })
-    .then(function(t) {
-      var res = JSON.parse(t);
+  // Full reload: reset semua
+  if (!incremental) {
+    allRecords = [];
+    cachedTotal = 0;
+    spinner.style.display = 'block';
+    tabel.style.display   = 'none';
+  }
+
+  var url = ADMIN_CONFIG.SCRIPT_URL + '?action=getAll';
+  if (incremental && cachedTotal > 0) url += '&since=' + cachedTotal;
+
+  fetchSafe(url)
+    .then(function(res) {
       if (res.status === 'ok') {
-        allRecords = res.records || [];
-        isiFilterSesi(allRecords);
-        renderTabel(allRecords);
-        hitungStat(allRecords);
+        var incoming = res.records || [];
+
+        if (incremental && cachedTotal > 0) {
+          // Tambahkan data baru ke depan (server sudah reverse)
+          allRecords = incoming.concat(allRecords);
+        } else {
+          allRecords = incoming;
+        }
+
+        // Update total yang diketahui client
+        if (res.total !== undefined) cachedTotal = res.total;
+
+        // Filter duplikat NIM + sesi + tanggal, ambil yang pertama
+        var seen = {};
+        var unik = allRecords.filter(function(d) {
+          var tgl = String(d.waktu).split(' ')[0] || String(d.waktu).split(',')[0];
+          var key = String(d.nim) + '|' + String(d.sesi) + '|' + tgl;
+          if (seen[key]) return false;
+          seen[key] = true;
+          return true;
+        });
+
+        isiFilterSesi(unik);
+        renderTabel(unik);
+        hitungStat(unik);
       } else { throw new Error(res.message); }
     })
     .catch(function(e) {
@@ -352,18 +400,38 @@ function renderTabel(records) {
   empty.style.display = 'none'; tabel.style.display = 'table';
   tbody.innerHTML = '';
   var badgeMap = { 'Hadir':'badge-hadir', 'Izin':'badge-izin', 'Sakit':'badge-sakit' };
-  records.forEach(function(row, i) {
-    var tr = document.createElement('tr');
-    tr.innerHTML =
-      '<td style="color:var(--muted)">'+(i+1)+'</td>'+
-      '<td style="white-space:nowrap;font-size:11px;color:var(--muted)">'+ss(row.waktu)+'</td>'+
-      '<td style="font-weight:500">'+ss(row.nama)+'</td>'+
-      '<td style="font-family:monospace">'+ss(row.nim)+'</td>'+
-      '<td style="color:var(--muted)">'+ss(row.kelas)+'</td>'+
-      '<td style="color:var(--muted)">'+ss(row.sesi)+'</td>'+
-      '<td><span class="badge '+(badgeMap[row.status]||'')+'">'+ss(row.status)+'</span></td>'+
-      '<td style="color:var(--muted)">'+(ss(row.keterangan)||'—')+'</td>';
-    tbody.appendChild(tr);
+
+  // Kelompokkan per kelas + sesi
+  var grup = {};
+  var urutan = [];
+  records.forEach(function(row) {
+    var key = ss(row.kelas) + ' · ' + ss(row.sesi);
+    if (!grup[key]) { grup[key] = []; urutan.push(key); }
+    grup[key].push(row);
+  });
+
+  var nomor = 1;
+  urutan.forEach(function(key) {
+    // Baris header grup
+    var th = document.createElement('tr');
+    th.innerHTML = '<td colspan="8" style="background:rgba(79,142,247,0.08);color:var(--accent);font-size:12px;font-weight:700;padding:10px 14px;border-bottom:1px solid var(--border);letter-spacing:0.3px;">'+key+' <span style="color:var(--muted);font-weight:400;">('+grup[key].length+' siswa)</span></td>';
+    tbody.appendChild(th);
+
+    // Baris data per grup
+    grup[key].forEach(function(row) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td style="color:var(--muted)">'+nomor+'</td>'+
+        '<td style="white-space:nowrap;font-size:11px;color:var(--muted)">'+ss(row.waktu)+'</td>'+
+        '<td style="font-weight:500">'+ss(row.nama)+'</td>'+
+        '<td style="font-family:monospace">'+ss(row.nim)+'</td>'+
+        '<td style="color:var(--muted)">'+ss(row.kelas)+'</td>'+
+        '<td style="color:var(--muted)">'+ss(row.sesi)+'</td>'+
+        '<td><span class="badge '+(badgeMap[row.status]||'')+'">'+ss(row.status)+'</span></td>'+
+        '<td style="color:var(--muted)">'+(ss(row.keterangan)||'—')+'</td>';
+      tbody.appendChild(tr);
+      nomor++;
+    });
   });
 }
 
@@ -425,10 +493,8 @@ function salinDaftar() {
 
 // ── Kelola Sesi ───────────────────────────────
 function muatInfoSesi() {
-  fetch(ADMIN_CONFIG.SCRIPT_URL + '?action=getSesi', { redirect: 'follow' })
-    .then(function(r) { return r.text(); })
-    .then(function(t) {
-      var res = JSON.parse(t);
+  fetchSafe(ADMIN_CONFIG.SCRIPT_URL + '?action=getSesi')
+    .then(function(res) {
       var el = document.getElementById('infoSesiAktif');
       if (res.status === 'ok' && res.sesi) {
         var s = res.sesi;
@@ -494,10 +560,8 @@ function simpanSesi() {
     '&lngPusat='   + encodeURIComponent(lng) +
     '&radius='     + encodeURIComponent(radius);
 
-  fetch(url, { redirect: 'follow' })
-    .then(function(r) { return r.text(); })
-    .then(function(t) {
-      var res = JSON.parse(t);
+  fetchSafe(url)
+    .then(function(res) {
       if (res.status === 'ok') {
         alertSesi.className = 'alert alert-success show';
         alertSesi.textContent = 'Sesi berhasil diaktifkan! Siswa sekarang bisa absen.';
@@ -516,8 +580,7 @@ function simpanSesi() {
 function nonaktifkanSesi() {
   if (!confirm('Yakin ingin menonaktifkan sesi? Siswa tidak akan bisa absen.')) return;
   var url = ADMIN_CONFIG.SCRIPT_URL + '?action=setSesi&kelas=&sesi=&jamMulai=0&menitMulai=0&jamSelesai=0&menitSelesai=0&latPusat=0&lngPusat=0&radius=0&nonaktif=1';
-  fetch(url, { redirect: 'follow' })
-    .then(function(r) { return r.text(); })
+  fetchSafe(url)
     .then(function() {
       document.getElementById('alertSesi').className = 'alert alert-success show';
       document.getElementById('alertSesi').textContent = 'Sesi berhasil dinonaktifkan.';

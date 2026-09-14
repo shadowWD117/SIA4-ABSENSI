@@ -16,7 +16,7 @@
     background: var(--bg); color: var(--text);
     font-family: 'Segoe UI', system-ui, sans-serif;
     min-height: 100vh; display: flex; flex-direction: column;
-    align-items: center; padding: 24px 16px; -webkit-tap-highlight-color: transparent;
+    align-items: center; padding: 24px 16px; -webkit-tap-highlight-color: transparent; user-select: none;
   }
   header { text-align: center; margin-bottom: 28px; }
   header .logo {
@@ -155,15 +155,15 @@
   </div>
   <div class="field">
     <label>Status kehadiran</label>
-    <select id="inputStatus">
+    <select id="inputStatus" onchange="onStatusChange()">
       <option value="Hadir">Hadir</option>
       <option value="Izin">Izin</option>
       <option value="Sakit">Sakit</option>
     </select>
   </div>
-  <div class="field">
-    <label>Keterangan (opsional)</label>
-    <textarea id="inputKet" placeholder="Catatan tambahan jika ada..."></textarea>
+  <div class="field" id="fieldKet" style="display:none;">
+    <label>Keterangan</label>
+    <textarea id="inputKet" placeholder="Wajib diisi untuk Izin atau Sakit..."></textarea>
   </div>
   <div id="alertForm" class="alert"></div>
   <button class="btn btn-primary" id="btnSubmit" onclick="bukaKonfirmasi()">Kirim Absensi</button>
@@ -194,9 +194,9 @@
 // KONFIGURASI — hanya 2 yang perlu diisi
 // =============================================
 var CONFIG = {
-  SCRIPT_URL:      "https://script.google.com/macros/s/AKfycbzgWJOzgesXOb9rhEj9QhEmw-VwzjB7Sug_MkKpsd06lqEb4TE2bRxIhYWV3rpaUUqG3w/exec",
+  SCRIPT_URL:      "https://script.google.com/macros/s/AKfycbym4G5ebgS_Z2gZ4NEidEQ45kwCz4F1p6Sns43zezXXQKYN_lJRS6J-eQAl9JyAbzKpXg/exec",
   NAMA_INSTITUSI:  "Universitas Malikussaleh",
-  DEBUG_MODE:      false,  // true = bypass waktu & GPS
+  DEBUG_MODE:      true,  // true = bypass waktu & GPS
 };
 // =============================================
 
@@ -224,10 +224,8 @@ updateClock();
 
 // ── Muat sesi aktif dari server ───────────────
 function muatSesi() {
-  fetch(CONFIG.SCRIPT_URL + '?action=getSesi', { redirect: 'follow' })
-    .then(function(r) { return r.text(); })
-    .then(function(t) {
-      var res = JSON.parse(t);
+  fetchSafe(CONFIG.SCRIPT_URL + '?action=getSesi')
+    .then(function(res) {
       if (res.status === 'ok' && res.sesi) {
         sesiAktif = res.sesi;
         document.getElementById('infoKelas').textContent = sesiAktif.kelas;
@@ -258,6 +256,23 @@ function cekWaktu(now) {
     return;
   }
 
+  // Cek tanggal sesi
+  if (sesiAktif.tanggal) {
+    var tglHariIni = now.getFullYear() + '-'
+      + String(now.getMonth() + 1).padStart(2, '0') + '-'
+      + String(now.getDate()).padStart(2, '0');
+    if (tglHariIni !== sesiAktif.tanggal) {
+      statusWaktuOK = false;
+      document.getElementById('badgeWaktu').className = 'status-badge err';
+      document.getElementById('statusWaktu').textContent = 'Sesi sudah berakhir';
+      document.getElementById('badgeLokasi').className = 'status-badge err';
+      document.getElementById('statusLokasi').textContent = '—';
+      tampilAlert('alertBox', 'warn', 'Tidak ada sesi absen aktif saat ini.');
+      document.getElementById('formCard').style.display = 'none';
+      return;
+    }
+  }
+
   var nowMenit   = now.getHours() * 60 + now.getMinutes();
   var mulaiMenit = sesiAktif.jamMulai * 60 + sesiAktif.menitMulai;
   var selesaiMenit = sesiAktif.jamSelesai * 60 + sesiAktif.menitSelesai;
@@ -275,8 +290,10 @@ function cekWaktu(now) {
     badge.className = 'status-badge err';
     var ms = pad(sesiAktif.jamMulai)+':'+pad(sesiAktif.menitMulai);
     var ss = pad(sesiAktif.jamSelesai)+':'+pad(sesiAktif.menitSelesai);
-    stat.textContent = ms + '–' + ss;
-    tampilAlert('alertBox', 'warn', 'Absensi hanya dibuka pukul '+ms+' – '+ss+'.');
+    stat.textContent = '—';
+    document.getElementById('badgeLokasi').className = 'status-badge err';
+    document.getElementById('statusLokasi').textContent = '—';
+    tampilAlert('alertBox', 'warn', 'Tidak ada sesi absen aktif saat ini.');
     document.getElementById('formCard').style.display = 'none';
   }
 }
@@ -312,24 +329,44 @@ function cekLokasi() {
         statusLokasiOK = true;
         badge.className = 'status-badge ok';
         stat.textContent = jarak + 'm dari pusat ✓';
+        // Dalam zona: hanya Hadir
+        var sel = document.getElementById('inputStatus');
+        sel.innerHTML = '<option value="Hadir">Hadir</option>';
+        document.getElementById('fieldKet').style.display = 'none';
         document.getElementById('alertBox').className = 'alert';
         cekGabungan();
       } else {
         statusLokasiOK = false;
         badge.className = 'status-badge err';
         stat.textContent = jarak + 'm (terlalu jauh)';
-        tampilAlert('alertBox', 'danger', '📍 Lokasimu '+jarak+'m dari titik absen. Batas maksimal: '+sesiAktif.radius+'m.');
-        document.getElementById('formCard').style.display = 'none';
+        // Luar zona: tampilkan semua opsi + keterangan
+        var sel = document.getElementById('inputStatus');
+        sel.innerHTML = '<option value="Izin">Izin</option><option value="Sakit">Sakit</option>';
+        document.getElementById('fieldKet').style.display = 'block';
+        tampilAlert('alertBox', 'warn', '📍 Kamu berada '+jarak+'m dari titik absen (batas: '+sesiAktif.radius+'m). Kamu hanya dapat mengisi Izin atau Sakit.');
+        cekGabungan();
       }
     },
     function(err) {
       badge.className = 'status-badge err';
-      var pesan = { 1:'Izin lokasi ditolak.', 2:'Lokasi tidak terdeteksi.', 3:'Waktu habis, coba refresh.' };
       stat.textContent = 'Gagal';
-      tampilAlert('alertBox', 'danger', '📍 ' + (pesan[err.code] || 'Gagal mendapatkan lokasi.'));
+      var pesan = {
+        1: 'Izin lokasi ditolak. Ikuti langkah berikut:\n1. Ketuk ikon gembok/info di address bar browser\n2. Cari pengaturan "Lokasi"\n3. Ubah ke "Izinkan"\n4. Refresh halaman ini',
+        2: 'Lokasi tidak terdeteksi. Pastikan GPS aktif di pengaturan HP, lalu refresh halaman.',
+        3: 'Waktu habis mendeteksi lokasi. Pastikan GPS aktif dan coba refresh halaman.'
+      };
+      var alertEl = document.getElementById('alertBox');
+      alertEl.className = 'alert alert-danger show';
+      alertEl.style.whiteSpace = 'pre-line';
+      alertEl.textContent = '📍 ' + (pesan[err.code] || 'Gagal mendapatkan lokasi. Coba refresh halaman.');
     },
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
   );
+}
+
+function onStatusChange() {
+  var status = document.getElementById('inputStatus').value;
+  document.getElementById('fieldKet').style.display = status !== 'Hadir' ? 'block' : 'none';
 }
 
 function cekGabungan() {
@@ -349,6 +386,7 @@ function bukaKonfirmasi() {
 
   if (!nama) { alertForm.className='alert alert-warn show'; alertForm.textContent='Nama lengkap wajib diisi.'; return; }
   if (!nim)  { alertForm.className='alert alert-warn show'; alertForm.textContent='NIM / NIS wajib diisi.'; return; }
+  if (status !== 'Hadir' && !ket) { alertForm.className='alert alert-warn show'; alertForm.textContent='Keterangan wajib diisi untuk Izin atau Sakit.'; return; }
   alertForm.className = 'alert';
 
   document.getElementById('cNama').textContent   = nama;
@@ -388,13 +426,8 @@ function submitAbsen() {
     lng:        userCoords ? userCoords.lng : 'debug',
   };
 
-  fetch(CONFIG.SCRIPT_URL, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
-    .then(function(r) { return r.text(); })
-    .then(function(t) {
-      var res = JSON.parse(t);
+  fetchSafe(CONFIG.SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload), redirect: 'follow' })
+    .then(function(res) {
       tutupKonfirmasi();
       if (res.status === 'ok') {
         document.getElementById('formCard').style.display = 'none';
@@ -429,6 +462,24 @@ function hitungJarak(lat1, lng1, lat2, lng2) {
 }
 
 function pad(n) { return String(n).padStart(2,'0'); }
+
+// ── Fetch helper dengan retry ─────────────────
+function fetchSafe(url, opsi, coba) {
+  coba = coba || 0;
+  return fetch(url, opsi || { redirect: 'follow' })
+    .then(function(r) { return r.text(); })
+    .then(function(t) {
+      if (t.trim().charAt(0) !== '{') {
+        if (coba < 2) return fetchSafe(url, opsi, coba + 1);
+        throw new Error('Server mengembalikan respons tidak valid. Coba refresh halaman.');
+      }
+      return JSON.parse(t);
+    })
+    .catch(function(e) {
+      if (coba < 2 && e.message.indexOf('tidak valid') === -1) return fetchSafe(url, opsi, coba + 1);
+      throw e;
+    });
+}
 
 // ── Init ──────────────────────────────────────
 muatSesi();
