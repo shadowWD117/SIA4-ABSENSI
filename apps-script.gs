@@ -126,7 +126,9 @@ function doGet(e) {
             latPusat:    sesiRows[i][6],
             lngPusat:    sesiRows[i][7],
             radius:      sesiRows[i][8],
-            tanggal:     sesiRows[i][10] || ""
+            tanggal:     sesiRows[i][10]
+              ? Utilities.formatDate(new Date(sesiRows[i][10]), Session.getScriptTimeZone(), "yyyy-MM-dd")
+              : ""
           };
           break;
         }
