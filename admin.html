@@ -145,14 +145,28 @@
   <div class="tab-panel active" id="tabData">
     <div class="content">
       <div id="alertDash" class="alert"></div>
+
+      <!-- Stat cards dengan label konteks -->
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">
+        Menampilkan: <span id="statLabel" style="color:var(--accent);font-weight:600;">Semua data</span>
+      </div>
       <div class="stats-row">
         <div class="stat-card"><div class="num num-total" id="statTotal">—</div><div class="lbl">Total</div></div>
         <div class="stat-card"><div class="num num-hadir" id="statHadir">—</div><div class="lbl">Hadir</div></div>
         <div class="stat-card"><div class="num num-izin"  id="statIzin">—</div><div class="lbl">Izin</div></div>
         <div class="stat-card"><div class="num num-sakit" id="statSakit">—</div><div class="lbl">Sakit</div></div>
       </div>
-      <div class="filter-row">
-        <input type="text" id="filterCari" placeholder="Cari nama atau NIM..." oninput="filterData()">
+
+      <!-- Toggle mode -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <button id="btnModeRekap" class="btn btn-primary" onclick="setMode('rekap')" style="flex:1;">Rekap</button>
+        <button id="btnModeCari" class="btn btn-ghost" onclick="setMode('cari')" style="flex:1;">Cari Mahasiswa</button>
+      </div>
+
+      <!-- Panel Rekap -->
+      <div id="panelRekap">
+        <div class="filter-row">
+          <input type="text" id="filterCari" placeholder="Cari nama atau NIM..." oninput="filterData()">
         <select id="filterStatus" onchange="filterData()">
           <option value="">Semua status</option>
           <option value="Hadir">Hadir</option>
@@ -173,6 +187,17 @@
           <optgroup label="— Per sesi —" id="optgroupSesi"></optgroup>
         </select>
         <button class="btn btn-ghost" onclick="salinDaftar()">Salin</button>
+      </div>
+      </div><!-- end panelRekap -->
+
+      <!-- Panel Cari Mahasiswa -->
+      <div id="panelCari" style="display:none;">
+        <div class="filter-row">
+          <input type="text" id="cariMahasiswa" placeholder="Nama atau NIM mahasiswa..." oninput="filterMahasiswa()" style="flex:1;">
+          <select id="filterSesiMahasiswa" onchange="filterMahasiswa()">
+            <option value="">Semua sesi</option>
+          </select>
+        </div>
       </div>
       <div class="table-wrap">
         <div id="loadingSpinner">Memuat data...</div>
@@ -259,7 +284,10 @@ var ADMIN_CONFIG = {
 };
 
 var allRecords = [];
+var dedupRecords = [];
 var cachedTotal = 0;
+var modeTampilan = 'rekap'; // 'rekap' atau 'cari'
+var sesiAktifNama = ''; // nama sesi yang sedang aktif
 
 // ── Fetch helper dengan retry ─────────────────
 function fetchSafe(url, opsi, coba) {
@@ -339,19 +367,18 @@ function muatData(incremental) {
         // Update total yang diketahui client
         if (res.total !== undefined) cachedTotal = res.total;
 
-        // Filter duplikat NIM + sesi + tanggal, ambil yang pertama
+        // Filter duplikat NIM + sesi + tanggal, simpan ke dedupRecords
         var seen = {};
-        var unik = allRecords.filter(function(d) {
-          var tgl = String(d.waktu).split(' ')[0] || String(d.waktu).split(',')[0];
+        dedupRecords = allRecords.filter(function(d) {
+          var tgl = String(d.waktu).split(',')[0].trim();
           var key = String(d.nim) + '|' + String(d.sesi) + '|' + tgl;
           if (seen[key]) return false;
           seen[key] = true;
           return true;
         });
 
-        isiFilterSesi(unik);
-        renderTabel(unik);
-        hitungStat(unik);
+        isiFilterSesi(dedupRecords);
+        applyFilter();
       } else { throw new Error(res.message); }
     })
     .catch(function(e) {
@@ -360,9 +387,20 @@ function muatData(incremental) {
     });
 }
 
+function setMode(mode) {
+  modeTampilan = mode;
+  document.getElementById('panelRekap').style.display = mode === 'rekap' ? 'block' : 'none';
+  document.getElementById('panelCari').style.display  = mode === 'cari'  ? 'block' : 'none';
+  document.getElementById('btnModeRekap').className = mode === 'rekap' ? 'btn btn-primary' : 'btn btn-ghost';
+  document.getElementById('btnModeCari').className  = mode === 'cari'  ? 'btn btn-primary' : 'btn btn-ghost';
+  applyFilter();
+}
+
 function isiFilterSesi(records) {
   var sesiSet = {};
   records.forEach(function(r) { if (r.sesi) sesiSet[r.sesi] = true; });
+
+  // Filter rekap
   var sel = document.getElementById('filterSesi');
   var current = sel.value;
   sel.innerHTML = '<option value="">Semua sesi</option>';
@@ -372,7 +410,19 @@ function isiFilterSesi(records) {
     sel.appendChild(opt);
   });
   sel.value = current;
-  // Isi juga optgroup salin per sesi
+
+  // Filter cari mahasiswa
+  var selM = document.getElementById('filterSesiMahasiswa');
+  var currentM = selM.value;
+  selM.innerHTML = '<option value="">Semua sesi</option>';
+  Object.keys(sesiSet).forEach(function(s) {
+    var opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    selM.appendChild(opt);
+  });
+  selM.value = currentM;
+
+  // Optgroup salin
   var og = document.getElementById('optgroupSesi');
   og.innerHTML = '';
   Object.keys(sesiSet).forEach(function(s) {
@@ -435,24 +485,60 @@ function renderTabel(records) {
   });
 }
 
+function applyFilter() {
+  if (modeTampilan === 'cari') {
+    filterMahasiswa();
+  } else {
+    filterData();
+  }
+}
+
 function filterData() {
   var cari   = document.getElementById('filterCari').value.toLowerCase();
   var status = document.getElementById('filterStatus').value;
   var sesi   = document.getElementById('filterSesi').value;
-  var filtered = allRecords.filter(function(d) {
+  var filtered = dedupRecords.filter(function(d) {
     var okCari   = !cari   || (d.nama && d.nama.toLowerCase().indexOf(cari) >= 0) || (d.nim && String(d.nim).toLowerCase().indexOf(cari) >= 0);
     var okStatus = !status || d.status === status;
     var okSesi   = !sesi   || d.sesi   === sesi;
     return okCari && okStatus && okSesi;
   });
+
+  // Stat cards kontekstual
+  var label = sesi ? sesi : (status ? status : 'Semua data');
+  document.getElementById('statLabel').textContent = label;
+  renderTabel(filtered);
+  hitungStat(filtered);
+}
+
+function filterMahasiswa() {
+  var cari = document.getElementById('cariMahasiswa').value.trim().toLowerCase();
+  var sesi = document.getElementById('filterSesiMahasiswa').value;
+
+  if (!cari) {
+    renderTabel([]);
+    hitungStat([]);
+    document.getElementById('statLabel').textContent = 'Pilih mahasiswa';
+    return;
+  }
+
+  var filtered = dedupRecords.filter(function(d) {
+    var okCari = (d.nama && d.nama.toLowerCase().indexOf(cari) >= 0) || (d.nim && String(d.nim).toLowerCase().indexOf(cari) >= 0);
+    var okSesi = !sesi || d.sesi === sesi;
+    return okCari && okSesi;
+  });
+
+  var label = filtered.length ? (filtered[0].nama || cari) : cari;
+  if (sesi) label += ' · ' + sesi;
+  document.getElementById('statLabel').textContent = label;
   renderTabel(filtered);
   hitungStat(filtered);
 }
 
 function exportCSV() {
-  if (!allRecords.length) return;
+  if (!dedupRecords.length) return;
   var header = ['Waktu','Nama','NIM/NIS','Kelas','Sesi','Status','Keterangan'];
-  var rows = allRecords.map(function(d) { return [d.waktu,d.nama,d.nim,d.kelas,d.sesi,d.status,d.keterangan]; });
+  var rows = dedupRecords.map(function(d) { return [d.waktu,d.nama,d.nim,d.kelas,d.sesi,d.status,d.keterangan]; });
   var csv = [header].concat(rows).map(function(r) {
     return r.map(function(v) { return '"'+String(v||'').replace(/"/g,'""')+'"'; }).join(',');
   }).join('\n');
@@ -471,11 +557,11 @@ function salinDaftar() {
   var sumber;
 
   if (tipe === 'status') {
-    sumber = nilai === 'semua' ? allRecords : allRecords.filter(function(d) { return d.status === nilai; });
+    sumber = nilai === 'semua' ? dedupRecords : dedupRecords.filter(function(d) { return d.status === nilai; });
   } else if (tipe === 'sesi') {
-    sumber = allRecords.filter(function(d) { return d.sesi === nilai; });
+    sumber = dedupRecords.filter(function(d) { return d.sesi === nilai; });
   } else {
-    sumber = allRecords;
+    sumber = dedupRecords;
   }
 
   if (!sumber.length) { alert('Tidak ada data untuk disalin.'); return; }
