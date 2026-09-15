@@ -251,7 +251,7 @@
 // KONFIGURASI — hanya 2 yang perlu diisi
 // =============================================
 var CONFIG = {
-  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyvuINXYqxoLD-eEspVFK3M9XKXtb2grTJsnwZD2tTChwBmO6ZAIta-dFaTxrK5ivoQdQ/exec",
+  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbz79UzmiGdb7aAhqkp4BPQ0BHfRcdSR_4-x2Utm0cfV4bLSNNMmUElTqpiWC8Qq947JkA/exec",
   NAMA_INSTITUSI:  "Universitas Malikussaleh",
   DEBUG_MODE:      false,  // true = bypass waktu & GPS
 };
@@ -474,6 +474,28 @@ function tutupKonfirmasi() {
 function submitAbsen() {
   var btnKirim = document.getElementById('btnKirim');
   btnKirim.disabled = true;
+  btnKirim.textContent = 'Memvalidasi...';
+
+  // Validasi sesi masih aktif di server sebelum kirim
+  fetchSafe(CONFIG.SCRIPT_URL + '?action=cekSesi')
+    .then(function(res) {
+      if (!res.aktif) {
+        tutupKonfirmasi();
+        document.getElementById('formCard').style.display = 'none';
+        tampilAlert('alertBox', 'warn', 'Sesi absen sudah berakhir. Hubungi admin.');
+        btnKirim.disabled = false;
+        btnKirim.textContent = 'Ya, kirim';
+        return;
+      }
+      kirimData();
+    })
+    .catch(function() {
+      kirimData(); // jika cek gagal, tetap coba kirim
+    });
+}
+
+function kirimData() {
+  var btnKirim = document.getElementById('btnKirim');
   btnKirim.textContent = 'Mengirim...';
 
   var now = new Date();

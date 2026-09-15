@@ -279,7 +279,7 @@
 
 <script>
 var ADMIN_CONFIG = {
-  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyvuINXYqxoLD-eEspVFK3M9XKXtb2grTJsnwZD2tTChwBmO6ZAIta-dFaTxrK5ivoQdQ/exec",
+  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbz79UzmiGdb7aAhqkp4BPQ0BHfRcdSR_4-x2Utm0cfV4bLSNNMmUElTqpiWC8Qq947JkA/exec",
   PASSWORD: "admin123"
 };
 
@@ -341,7 +341,6 @@ function muatData(incremental) {
   var spinner = document.getElementById('loadingSpinner');
   var tabel   = document.getElementById('tabelAbsen');
 
-  // Full reload: reset semua
   if (!incremental) {
     allRecords = [];
     cachedTotal = 0;
@@ -349,10 +348,14 @@ function muatData(incremental) {
     tabel.style.display   = 'none';
   }
 
-  var url = ADMIN_CONFIG.SCRIPT_URL + '?action=getAll';
-  if (incremental && cachedTotal > 0) url += '&since=' + cachedTotal;
-
-  fetchSafe(url)
+  // Bersihkan duplikat dulu sebelum ambil data
+  fetchSafe(ADMIN_CONFIG.SCRIPT_URL + '?action=bersihkanDuplikat')
+    .catch(function() {}) // abaikan error, tetap lanjut
+    .then(function() {
+      var url = ADMIN_CONFIG.SCRIPT_URL + '?action=getAll';
+      if (incremental && cachedTotal > 0) url += '&since=' + cachedTotal;
+      return fetchSafe(url);
+    })
     .then(function(res) {
       if (res.status === 'ok') {
         var incoming = res.records || [];
@@ -584,6 +587,27 @@ function muatInfoSesi() {
       var el = document.getElementById('infoSesiAktif');
       if (res.status === 'ok' && res.sesi) {
         var s = res.sesi;
+
+        // Cek apakah sesi masih dalam rentang waktu dan tanggal hari ini
+        var now = new Date();
+        var tglHariIni = now.getFullYear() + '-'
+          + String(now.getMonth()+1).padStart(2,'0') + '-'
+          + String(now.getDate()).padStart(2,'0');
+        var nowMenit   = now.getHours() * 60 + now.getMinutes();
+        var mulaiMenit = parseInt(s.jamMulai) * 60 + parseInt(s.menitMulai);
+        var selesaiMenit = parseInt(s.jamSelesai) * 60 + parseInt(s.menitSelesai);
+        var sesiMasihAktif = s.tanggal === tglHariIni
+          && nowMenit >= mulaiMenit
+          && nowMenit <= selesaiMenit;
+
+        if (!sesiMasihAktif) {
+          // Auto-nonaktifkan sesi di server
+          fetchSafe(ADMIN_CONFIG.SCRIPT_URL + '?action=setSesi&kelas=&sesi=&jamMulai=0&menitMulai=0&jamSelesai=0&menitSelesai=0&latPusat=0&lngPusat=0&radius=0&nonaktif=1')
+            .catch(function() {});
+          el.innerHTML = '<div class="no-sesi">Tidak ada sesi aktif saat ini.</div>';
+          return;
+        }
+
         var ms = pad(s.jamMulai)+':'+pad(s.menitMulai);
         var ss2 = pad(s.jamSelesai)+':'+pad(s.menitSelesai);
         el.innerHTML =

@@ -27,6 +27,35 @@ function doPost(e) {
     var payload = JSON.parse(e.postData.contents);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
 
+    // Validasi sesi aktif di server
+    var sesiSheet = getOrCreateSheet(ss, SHEET_SESI, [
+      "Kelas","Sesi","Jam Mulai","Menit Mulai","Jam Selesai","Menit Selesai",
+      "Lat Pusat","Lng Pusat","Radius (m)","Status","Tanggal"
+    ]);
+    var sesiRows = sesiSheet.getDataRange().getValues();
+    var sesiAktif = null;
+    var now = new Date();
+    var tglHariIni = Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyy-MM-dd");
+    var nowMenit = now.getHours() * 60 + now.getMinutes();
+
+    for (var s = 1; s < sesiRows.length; s++) {
+      if (sesiRows[s][9] === "Aktif") {
+        var tglSesi = sesiRows[s][10]
+          ? Utilities.formatDate(new Date(sesiRows[s][10]), Session.getScriptTimeZone(), "yyyy-MM-dd")
+          : "";
+        var mulaiMenit   = parseInt(sesiRows[s][2]) * 60 + parseInt(sesiRows[s][3]);
+        var selesaiMenit = parseInt(sesiRows[s][4]) * 60 + parseInt(sesiRows[s][5]);
+        if (tglSesi === tglHariIni && nowMenit >= mulaiMenit && nowMenit <= selesaiMenit) {
+          sesiAktif = sesiRows[s];
+        }
+        break;
+      }
+    }
+
+    if (!sesiAktif) {
+      return jsonOut({ status: "error", message: "Sesi absen sudah berakhir atau tidak aktif. Hubungi admin." });
+    }
+
     var sheet = getOrCreateSheet(ss, SHEET_ABSEN, [
       "Waktu","Nama","NIM/NIS","Kelas","Sesi","Status","Keterangan","Latitude","Longitude"
     ]);
@@ -170,6 +199,65 @@ function doGet(e) {
       sesiSheet.autoResizeColumns(1, 11);
 
       return jsonOut({ status: "ok", message: "Sesi berhasil diperbarui." });
+    }
+
+    // Bersihkan duplikat dari Sheets
+    if (action === "bersihkanDuplikat") {
+      var sheet = getOrCreateSheet(ss, SHEET_ABSEN, [
+        "Waktu","Nama","NIM/NIS","Kelas","Sesi","Status","Keterangan","Latitude","Longitude"
+      ]);
+      var rows = sheet.getDataRange().getValues();
+      if (rows.length <= 1) return jsonOut({ status: "ok", dihapus: 0 });
+
+      var seen = {};
+      var toDelete = [];
+      for (var i = 1; i < rows.length; i++) {
+        var tgl = "";
+        try {
+          tgl = Utilities.formatDate(new Date(rows[i][0]), Session.getScriptTimeZone(), "yyyy-MM-dd");
+        } catch(ex) { tgl = String(rows[i][0]).split(' ')[0]; }
+        var key = String(rows[i][2]) + '|' + String(rows[i][4]) + '|' + tgl;
+        if (seen[key]) {
+          toDelete.push(i + 1); // +1 karena index sheet mulai dari 1
+        } else {
+          seen[key] = true;
+        }
+      }
+
+      // Hapus dari bawah ke atas agar index tidak bergeser
+      for (var d = toDelete.length - 1; d >= 0; d--) {
+        sheet.deleteRow(toDelete[d]);
+      }
+
+      return jsonOut({ status: "ok", dihapus: toDelete.length });
+    }
+
+    // Cek sesi aktif real-time (untuk validasi dari halaman absensi)
+    if (action === "cekSesi") {
+      var sesiSheet = getOrCreateSheet(ss, SHEET_SESI, [
+        "Kelas","Sesi","Jam Mulai","Menit Mulai","Jam Selesai","Menit Selesai",
+        "Lat Pusat","Lng Pusat","Radius (m)","Status","Tanggal"
+      ]);
+      var sesiRows = sesiSheet.getDataRange().getValues();
+      var now = new Date();
+      var tglHariIni = Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyy-MM-dd");
+      var nowMenit = now.getHours() * 60 + now.getMinutes();
+      var aktif = false;
+
+      for (var i = 1; i < sesiRows.length; i++) {
+        if (sesiRows[i][9] === "Aktif") {
+          var tglSesi = sesiRows[i][10]
+            ? Utilities.formatDate(new Date(sesiRows[i][10]), Session.getScriptTimeZone(), "yyyy-MM-dd")
+            : "";
+          var mulai   = parseInt(sesiRows[i][2]) * 60 + parseInt(sesiRows[i][3]);
+          var selesai = parseInt(sesiRows[i][4]) * 60 + parseInt(sesiRows[i][5]);
+          if (tglSesi === tglHariIni && nowMenit >= mulai && nowMenit <= selesai) {
+            aktif = true;
+          }
+          break;
+        }
+      }
+      return jsonOut({ status: "ok", aktif: aktif });
     }
 
     return jsonOut({ status: "error", message: "Action tidak dikenal." });
