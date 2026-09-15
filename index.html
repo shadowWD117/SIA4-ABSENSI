@@ -11,12 +11,45 @@
     --accent: #4f8ef7; --accent2: #7c6af7;
     --success: #22c55e; --danger: #ef4444; --warn: #f59e0b;
     --text: #e8eaf0; --muted: #8891a8; --radius: 14px;
+    --card-blur: rgba(15,17,23,0.72);
+    --card-border: rgba(255,255,255,0.07);
+  }
+
+  /* ── Background animasi ── */
+  .bg-layer {
+    position: fixed; inset: 0; z-index: 0;
+    overflow: hidden; pointer-events: none;
+  }
+  .bg-layer img {
+    position: absolute;
+    width: 120%; height: 120%;
+    top: -10%; left: -10%;
+    object-fit: cover;
+    animation: bgDrift 20s ease-in-out infinite alternate;
+    filter: brightness(0.32) saturate(0.8);
+    will-change: transform;
+  }
+  @keyframes bgDrift {
+    0%   { transform: translateX(0%)   translateY(0%)   scale(1.05); }
+    50%  { transform: translateX(3%)   translateY(-2%)  scale(1.08); }
+    100% { transform: translateX(-3%)  translateY(2%)   scale(1.05); }
+  }
+  .bg-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(
+      180deg,
+      rgba(10,10,18,0.55) 0%,
+      rgba(10,10,18,0.35) 40%,
+      rgba(10,10,18,0.75) 100%
+    );
   }
   body {
     background: var(--bg); color: var(--text);
     font-family: 'Segoe UI', system-ui, sans-serif;
     min-height: 100vh; display: flex; flex-direction: column;
-    align-items: center; padding: 24px 16px; -webkit-tap-highlight-color: transparent; user-select: none;
+    align-items: center; padding: 24px 16px;
+    -webkit-tap-highlight-color: transparent; user-select: none;
+    position: relative; z-index: 1;
   }
   header { text-align: center; margin-bottom: 28px; }
   header .logo {
@@ -26,12 +59,16 @@
     align-items: center; justify-content: center;
     font-size: 28px; margin-bottom: 12px;
   }
-  header h1 { font-size: 22px; font-weight: 600; }
-  header p { color: var(--muted); font-size: 14px; margin-top: 4px; }
+  header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; text-shadow: 0 2px 12px rgba(0,0,0,0.5); }
+  header p { color: rgba(255,255,255,0.5); font-size: 14px; margin-top: 4px; letter-spacing: 0.3px; }
   .card {
-    background: var(--card); border: 1px solid var(--border);
+    background: var(--card-blur);
+    border: 1px solid var(--card-border);
     border-radius: var(--radius); padding: 20px;
     width: 100%; max-width: 420px; margin-bottom: 14px;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
   }
   .clock { font-size: 36px; font-weight: 700; letter-spacing: -1px; text-align: center; padding: 8px 0 2px; }
   .date-str { text-align: center; color: var(--muted); font-size: 14px; margin-bottom: 14px; }
@@ -52,11 +89,19 @@
   .field { margin-bottom: 14px; }
   .field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
   .field input, .field select, .field textarea {
-    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    width: 100%; background: rgba(255,255,255,0.05);
+    border: 1px solid var(--card-border);
     color: var(--text); border-radius: 10px; padding: 12px 14px;
-    font-size: 15px; font-family: inherit; outline: none; transition: border-color 0.2s;
+    font-size: 15px; font-family: inherit; outline: none;
+    transition: border-color 0.2s, background 0.2s;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
-  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color: var(--accent);
+    background: rgba(255,255,255,0.08);
+  }
+  
   .field textarea { resize: vertical; min-height: 72px; }
   .field select option { background: var(--card); }
   .btn {
@@ -90,9 +135,13 @@
   }
   .modal-backdrop.show { opacity: 1; pointer-events: all; }
   .modal {
-    background: var(--card); border: 1px solid var(--border);
+    background: var(--card-blur);
+    border: 1px solid var(--card-border);
     border-radius: var(--radius); padding: 24px;
     width: 100%; max-width: 380px;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
     transform: translateY(12px); transition: transform 0.2s;
   }
   .modal-backdrop.show .modal { transform: translateY(0); }
@@ -110,6 +159,11 @@
 </style>
 </head>
 <body>
+
+<div class="bg-layer">
+  <img src="img.png" alt="">
+  <div class="bg-overlay"></div>
+</div>
 
 <header>
   <div class="logo">🎓</div>
