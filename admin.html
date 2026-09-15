@@ -174,7 +174,7 @@
           <option value="Sakit">Sakit</option>
         </select>
         <select id="filterSesi" onchange="filterData()">
-          <option value="">Semua sesi</option>
+          <option value="">Semua sesi absensi</option>
         </select>
         <button class="btn btn-primary" onclick="exportCSV()">CSV</button>
         <select id="pilihanSalin" style="background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;outline:none;">
@@ -184,7 +184,7 @@
             <option value="status:Izin">Izin saja</option>
             <option value="status:Sakit">Sakit saja</option>
           </optgroup>
-          <optgroup label="— Per sesi —" id="optgroupSesi"></optgroup>
+          <optgroup label="— Per sesi absensi —" id="optgroupSesi"></optgroup>
         </select>
         <button class="btn btn-ghost" onclick="salinDaftar()">Salin</button>
       </div>
@@ -203,7 +203,7 @@
         <div id="loadingSpinner">Memuat data...</div>
         <table id="tabelAbsen" style="display:none;">
           <thead>
-            <tr><th>#</th><th>Waktu</th><th>Nama</th><th>NIM/NIS</th><th>Kelas</th><th>Sesi</th><th>Status</th><th>Keterangan</th></tr>
+            <tr><th>NO</th><th>Waktu</th><th>Nama</th><th>NIM</th><th>Mata Kuliah</th><th>Ruangan</th><th>Status</th><th>Keterangan</th></tr>
           </thead>
           <tbody id="tbodyAbsen"></tbody>
         </table>
@@ -223,16 +223,16 @@
 
       <!-- Form set sesi baru -->
       <div class="sesi-card">
-        <h3>Aktifkan sesi baru</h3>
+        <h3>Aktifkan sesi absen baru</h3>
         <div id="alertSesi" class="alert"></div>
         <div class="form-grid">
           <div class="field full">
-            <label>Nama kelas / mata kuliah</label>
-            <input type="text" id="sKelas" placeholder="Contoh: Pemrograman Web A">
+            <label>Mata kuliah</label>
+            <input type="text" id="sKelas" placeholder="Contoh: Pengantar basis data">
           </div>
           <div class="field full">
-            <label>Nama sesi / pertemuan</label>
-            <input type="text" id="sSesi" placeholder="Contoh: Pertemuan 6">
+            <label>Nama ruangan</label>
+            <input type="text" id="sSesi" placeholder="Contoh: Ruang 1.4">
           </div>
           <div class="field">
             <label>Jam mulai</label>
@@ -252,11 +252,11 @@
           </div>
           <hr class="divider full">
           <div class="field full">
-            <label>Latitude pusat (titik kampus)</label>
+            <label>Latitude pusat (titik lokasi)</label>
             <input type="number" id="sLat" step="any" placeholder="Contoh: 4.295392">
           </div>
           <div class="field full">
-            <label>Longitude pusat (titik kampus)</label>
+            <label>Longitude pusat (titik lokasi)</label>
             <input type="number" id="sLng" step="any" placeholder="Contoh: 98.083485">
           </div>
           <div class="field full">
@@ -540,7 +540,7 @@ function filterMahasiswa() {
 
 function exportCSV() {
   if (!dedupRecords.length) return;
-  var header = ['Waktu','Nama','NIM/NIS','Kelas','Sesi','Status','Keterangan'];
+  var header = ['Waktu','Nama','NIM','Mata Kuliah','Ruangan','Status','Keterangan'];
   var rows = dedupRecords.map(function(d) { return [d.waktu,d.nama,d.nim,d.kelas,d.sesi,d.status,d.keterangan]; });
   var csv = [header].concat(rows).map(function(r) {
     return r.map(function(v) { return '"'+String(v||'').replace(/"/g,'""')+'"'; }).join(',');
@@ -613,8 +613,8 @@ function muatInfoSesi() {
         el.innerHTML =
           '<div class="sesi-aktif-info">'+
           '<div class="judul">Sesi sedang aktif</div>'+
-          '<div class="sesi-detail-row"><span class="dk">Kelas</span><span class="dv">'+s.kelas+'</span></div>'+
-          '<div class="sesi-detail-row"><span class="dk">Sesi</span><span class="dv">'+s.sesi+'</span></div>'+
+          '<div class="sesi-detail-row"><span class="dk">Mata Kuliah</span><span class="dv">'+s.kelas+'</span></div>'+
+          '<div class="sesi-detail-row"><span class="dk">Ruangan</span><span class="dv">'+s.sesi+'</span></div>'+
           '<div class="sesi-detail-row"><span class="dk">Waktu</span><span class="dv">'+ms+' – '+ss2+'</span></div>'+
           '<div class="sesi-detail-row"><span class="dk">Radius</span><span class="dv">'+s.radius+' meter</span></div>'+
           '<div style="margin-top:12px;"><button class="btn btn-danger" style="width:100%" onclick="nonaktifkanSesi()"> Nonaktifkan sesi ini</button></div>'+
