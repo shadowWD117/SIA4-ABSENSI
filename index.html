@@ -44,12 +44,12 @@
     );
   }
   body {
-    background: var(--bg); color: var(--text);
+    background: transparent; color: var(--text);
     font-family: 'Segoe UI', system-ui, sans-serif;
     min-height: 100vh; display: flex; flex-direction: column;
     align-items: center; padding: 24px 16px;
     -webkit-tap-highlight-color: transparent; user-select: none;
-    position: relative; z-index: 1;
+    position: relative; z-index: 1; isolation: isolate;
   }
   header { text-align: center; margin-bottom: 28px; }
   header .logo {
@@ -62,13 +62,13 @@
   header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; text-shadow: 0 2px 12px rgba(0,0,0,0.5); }
   header p { color: rgba(255,255,255,0.5); font-size: 14px; margin-top: 4px; letter-spacing: 0.3px; }
   .card {
-    background: var(--card-blur);
-    border: 1px solid var(--card-border);
+    background: rgba(15,17,23,0.55);
+    border: 1px solid rgba(255,255,255,0.09);
     border-radius: var(--radius); padding: 20px;
     width: 100%; max-width: 420px; margin-bottom: 14px;
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
   }
   .clock { font-size: 36px; font-weight: 700; letter-spacing: -1px; text-align: center; padding: 8px 0 2px; }
   .date-str { text-align: center; color: var(--muted); font-size: 14px; margin-bottom: 14px; }
@@ -135,8 +135,8 @@
   }
   .modal-backdrop.show { opacity: 1; pointer-events: all; }
   .modal {
-    background: var(--card-blur);
-    border: 1px solid var(--card-border);
+    background: rgba(15,17,23,0.60);
+    border: 1px solid rgba(255,255,255,0.09);
     border-radius: var(--radius); padding: 24px;
     width: 100%; max-width: 380px;
     backdrop-filter: blur(24px);
@@ -153,7 +153,9 @@
   .modal-btns .btn { flex: 1; padding: 12px; }
   .btn-cancel { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
 
-  footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 8px; }
+  footer { color: rgba(255,255,255,0.35); font-size: 12px; text-align: center; margin-top: 8px; }
+
+  header, .card, footer { position: relative; z-index: 2; }
   .loading-dots::after { content: ''; animation: dots 1.2s infinite; }
   @keyframes dots { 0%{content:''} 33%{content:'.'} 66%{content:'..'} 100%{content:'...'} }
 </style>
