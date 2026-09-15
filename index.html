@@ -49,7 +49,6 @@
     min-height: 100vh; display: flex; flex-direction: column;
     align-items: center; padding: 24px 16px;
     -webkit-tap-highlight-color: transparent; user-select: none;
-    position: relative; z-index: 1; isolation: isolate;
   }
   header { text-align: center; margin-bottom: 28px; }
   header .logo {
@@ -66,8 +65,8 @@
     border: 1px solid rgba(255,255,255,0.09);
     border-radius: var(--radius); padding: 20px;
     width: 100%; max-width: 420px; margin-bottom: 14px;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
     box-shadow: 0 8px 32px rgba(0,0,0,0.35);
   }
   .clock { font-size: 36px; font-weight: 700; letter-spacing: -1px; text-align: center; padding: 8px 0 2px; }
@@ -155,7 +154,9 @@
 
   footer { color: rgba(255,255,255,0.35); font-size: 12px; text-align: center; margin-top: 8px; }
 
-  header, .card, footer { position: relative; z-index: 2; }
+  header, .card, footer, #formCard { position: relative; z-index: 2; }
+
+  .modal-backdrop { z-index: 100; }
   .loading-dots::after { content: ''; animation: dots 1.2s infinite; }
   @keyframes dots { 0%{content:''} 33%{content:'.'} 66%{content:'..'} 100%{content:'...'} }
 </style>
