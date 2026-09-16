@@ -29,7 +29,7 @@ function doPost(e) {
 
     // Validasi sesi aktif di server
     var sesiSheet = getOrCreateSheet(ss, SHEET_SESI, [
-      "Kelas","Sesi","Jam Mulai","Menit Mulai","Jam Selesai","Menit Selesai",
+      "Mata Kuliah","Ruangan","Jam Mulai","Menit Mulai","Jam Selesai","Menit Selesai",
       "Lat Pusat","Lng Pusat","Radius (m)","Status","Tanggal"
     ]);
     var sesiRows = sesiSheet.getDataRange().getValues();
@@ -125,9 +125,17 @@ function doGet(e) {
 
       var records = newRows.map(function(row) {
         return {
-          waktu: row[0], nama: row[1], nim: row[2],
-          kelas: row[3], sesi: row[4], status: row[5],
-          keterangan: row[6], lat: row[7], lng: row[8]
+          waktu:      row[0] instanceof Date
+                        ? Utilities.formatDate(row[0], Session.getScriptTimeZone(), "dd/MM/yyyy, HH.mm.ss")
+                        : String(row[0]),
+          nama:       String(row[1] || ''),
+          nim:        String(row[2] || ''),
+          kelas:      String(row[3] || ''),
+          sesi:       String(row[4] || ''),
+          status:     String(row[5] || ''),
+          keterangan: String(row[6] || ''),
+          lat:        row[7],
+          lng:        row[8]
         };
       }).reverse();
 
@@ -137,8 +145,8 @@ function doGet(e) {
     // Ambil sesi aktif (untuk halaman absensi siswa)
     if (action === "getSesi") {
       var sesiSheet = getOrCreateSheet(ss, SHEET_SESI, [
-        "Kelas","Sesi","Jam Mulai","Menit Mulai","Jam Selesai","Menit Selesai",
-        "Lat Pusat","Lng Pusat","Radius (m)","Status","Tanggal"
+        "Mata Kuliah","Ruangan","Jam Mulai","Menit Mulai","Jam Selesai","Menit Selesai",
+      "Lat Pusat","Lng Pusat","Radius (m)","Status","Tanggal"
       ]);
       var sesiRows = sesiSheet.getDataRange().getValues();
       // Cari baris dengan Status = "Aktif"
@@ -146,16 +154,16 @@ function doGet(e) {
       for (var i = 1; i < sesiRows.length; i++) {
         if (sesiRows[i][9] === "Aktif") {
           aktif = {
-            kelas:       sesiRows[i][0],
-            sesi:        sesiRows[i][1],
-            jamMulai:    sesiRows[i][2],
-            menitMulai:  sesiRows[i][3],
-            jamSelesai:  sesiRows[i][4],
-            menitSelesai:sesiRows[i][5],
-            latPusat:    sesiRows[i][6],
-            lngPusat:    sesiRows[i][7],
-            radius:      sesiRows[i][8],
-            tanggal:     sesiRows[i][10]
+            kelas:        String(sesiRows[i][0]),
+            sesi:         String(sesiRows[i][1]),
+            jamMulai:     parseInt(sesiRows[i][2]),
+            menitMulai:   parseInt(sesiRows[i][3]),
+            jamSelesai:   parseInt(sesiRows[i][4]),
+            menitSelesai: parseInt(sesiRows[i][5]),
+            latPusat:     parseFloat(sesiRows[i][6]),
+            lngPusat:     parseFloat(sesiRows[i][7]),
+            radius:       parseInt(sesiRows[i][8]),
+            tanggal:      sesiRows[i][10]
               ? Utilities.formatDate(new Date(sesiRows[i][10]), Session.getScriptTimeZone(), "yyyy-MM-dd")
               : ""
           };
@@ -168,8 +176,8 @@ function doGet(e) {
     // Simpan / update sesi aktif dari admin
     if (action === "setSesi") {
       var sesiSheet = getOrCreateSheet(ss, SHEET_SESI, [
-        "Kelas","Sesi","Jam Mulai","Menit Mulai","Jam Selesai","Menit Selesai",
-        "Lat Pusat","Lng Pusat","Radius (m)","Status","Tanggal"
+        "Mata Kuliah","Ruangan","Jam Mulai","Menit Mulai","Jam Selesai","Menit Selesai",
+      "Lat Pusat","Lng Pusat","Radius (m)","Status","Tanggal"
       ]);
 
       // Nonaktifkan semua sesi dulu
@@ -183,9 +191,10 @@ function doGet(e) {
         return jsonOut({ status: "ok", message: "Sesi dinonaktifkan." });
       }
       // Tambah sesi baru sebagai Aktif
+      // Prefix ' agar Sheets tidak auto-konversi nilai seperti "1.4" ke Date
       sesiSheet.appendRow([
-        e.parameter.kelas,
-        e.parameter.sesi,
+        "'" + e.parameter.kelas,
+        "'" + e.parameter.sesi,
         parseInt(e.parameter.jamMulai),
         parseInt(e.parameter.menitMulai),
         parseInt(e.parameter.jamSelesai),
@@ -235,8 +244,8 @@ function doGet(e) {
     // Cek sesi aktif real-time (untuk validasi dari halaman absensi)
     if (action === "cekSesi") {
       var sesiSheet = getOrCreateSheet(ss, SHEET_SESI, [
-        "Kelas","Sesi","Jam Mulai","Menit Mulai","Jam Selesai","Menit Selesai",
-        "Lat Pusat","Lng Pusat","Radius (m)","Status","Tanggal"
+        "Mata Kuliah","Ruangan","Jam Mulai","Menit Mulai","Jam Selesai","Menit Selesai",
+      "Lat Pusat","Lng Pusat","Radius (m)","Status","Tanggal"
       ]);
       var sesiRows = sesiSheet.getDataRange().getValues();
       var now = new Date();

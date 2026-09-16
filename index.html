@@ -234,8 +234,8 @@
     <h3>Konfirmasi absensi</h3>
     <div class="confirm-row"><span class="ck">Nama</span><span class="cv" id="cNama">—</span></div>
     <div class="confirm-row"><span class="ck">NIM / NIS</span><span class="cv" id="cNim">—</span></div>
-    <div class="confirm-row"><span class="ck">Kelas</span><span class="cv" id="cKelas">—</span></div>
-    <div class="confirm-row"><span class="ck">Sesi</span><span class="cv" id="cSesi">—</span></div>
+    <div class="confirm-row"><span class="ck">Mata Kuliah</span><span class="cv" id="cKelas">—</span></div>
+    <div class="confirm-row"><span class="ck">Ruang Kelas</span><span class="cv" id="cSesi">—</span></div>
     <div class="confirm-row"><span class="ck">Status</span><span class="cv" id="cStatus">—</span></div>
     <div class="confirm-row" id="cRowKet" style="display:none;"><span class="ck">Keterangan</span><span class="cv" id="cKet">—</span></div>
     <p style="font-size:13px;color:var(--muted);margin-top:12px;">Pastikan data sudah benar. Absensi tidak bisa diubah setelah dikirim.</p>
@@ -251,7 +251,7 @@
 // KONFIGURASI — hanya 2 yang perlu diisi
 // =============================================
 var CONFIG = {
-  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbz79UzmiGdb7aAhqkp4BPQ0BHfRcdSR_4-x2Utm0cfV4bLSNNMmUElTqpiWC8Qq947JkA/exec",
+  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxv7kbrPQshDCBGxXCge_57ExgRiiGssMWTWrM8wVIwO5GGQ0-Sl6mRPQamcPGYMTVLJQ/exec",
   NAMA_INSTITUSI:  "Universitas Malikussaleh",
   DEBUG_MODE:      false,  // true = bypass waktu & GPS
 };
@@ -288,8 +288,8 @@ function muatSesi() {
         sesiAktif = res.sesi;
         document.getElementById('infoKelas').textContent = sesiAktif.kelas;
         document.getElementById('infoSesi').textContent  = sesiAktif.sesi;
+        // Cek waktu dulu — cekLokasi hanya dipanggil dari dalam cekWaktu jika lolos
         cekWaktu(new Date());
-        cekLokasi();
       } else {
         tampilAlert('alertBox', 'warn', 'Belum ada sesi absen yang aktif. Hubungi admin untuk mengaktifkan sesi.');
         document.getElementById('badgeWaktu').className = 'status-badge err';
@@ -341,7 +341,9 @@ function cekWaktu(now) {
       badge.className = 'status-badge ok';
       stat.textContent = 'Dalam sesi ✓';
       document.getElementById('alertBox').className = 'alert';
-      cekGabungan();
+      // Baru jalankan GPS setelah waktu terkonfirmasi valid
+      if (!lokasiSudahDicek) cekLokasi();
+      else cekGabungan();
     }
   } else {
     statusWaktuOK = false;
@@ -383,12 +385,15 @@ function cekLokasi() {
     function(pos) {
       userCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       var jarak = Math.round(hitungJarak(userCoords.lat, userCoords.lng, sesiAktif.latPusat, sesiAktif.lngPusat));
+      // Buffer toleransi dari akurasi GPS, maksimal 30 meter
+      var bufferGPS = Math.min(Math.round(pos.coords.accuracy || 0), 30);
+      var efektifRadius = sesiAktif.radius + bufferGPS;
       lokasiSudahDicek = true;
-      if (jarak <= sesiAktif.radius) {
+
+      if (jarak <= efektifRadius) {
         statusLokasiOK = true;
         badge.className = 'status-badge ok';
         stat.textContent = jarak + 'm dari pusat ✓';
-        // Dalam zona: hanya Hadir
         var sel = document.getElementById('inputStatus');
         sel.innerHTML = '<option value="Hadir">Hadir</option>';
         document.getElementById('fieldKet').style.display = 'none';
@@ -398,7 +403,6 @@ function cekLokasi() {
         statusLokasiOK = false;
         badge.className = 'status-badge err';
         stat.textContent = jarak + 'm (terlalu jauh)';
-        // Luar zona: tampilkan semua opsi + keterangan
         var sel = document.getElementById('inputStatus');
         sel.innerHTML = '<option value="Izin">Izin</option><option value="Sakit">Sakit</option>';
         document.getElementById('fieldKet').style.display = 'block';
