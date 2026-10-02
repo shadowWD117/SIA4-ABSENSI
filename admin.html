@@ -70,8 +70,10 @@
     background: var(--card); border: 1px solid var(--border);
     color: var(--text); border-radius: 8px; padding: 8px 12px;
     font-size: 14px; font-family: inherit; outline: none;
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis;
   }
   .filter-row input { flex: 1; min-width: 150px; }
+  .filter-row select { max-width: 180px; }
   .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th { text-align: left; padding: 11px 14px; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); white-space: nowrap; }
@@ -130,7 +132,7 @@
     <h1>Dashboard Absensi</h1>
     <div class="topbar-right">
       <button class="btn btn-ghost" onclick="muatData(true)">Refresh</button>
-      <button class="btn btn-ghost" onclick="muatData(false)">↺ Muat ulang</button>
+      <button class="btn btn-ghost" onclick="muatData(false)">Muat ulang</button>
       <button class="btn btn-danger" onclick="doLogout()">Keluar</button>
     </div>
   </div>
@@ -165,37 +167,44 @@
 
       <!-- Panel Rekap -->
       <div id="panelRekap">
+        <!-- Baris 1: filter utama -->
+        <div class="filter-row" style="margin-bottom:8px;">
+          <select id="filterTanggal" onchange="onTanggalChange()" style="max-width:200px;">
+            <option value="">Semua tanggal</option>
+          </select>
+          <select id="filterMatkul" onchange="filterData()" style="max-width:180px;">
+            <option value="">Semua mata kuliah</option>
+          </select>
+          <select id="filterStatus" onchange="filterData()">
+            <option value="">Semua status</option>
+            <option value="Hadir">Hadir</option>
+            <option value="Izin">Izin</option>
+            <option value="Sakit">Sakit</option>
+          </select>
+        </div>
+        <!-- Baris 2: aksi -->
         <div class="filter-row">
-          <input type="text" id="filterCari" placeholder="Cari nama atau NIM..." oninput="filterData()">
-        <select id="filterStatus" onchange="filterData()">
-          <option value="">Semua status</option>
-          <option value="Hadir">Hadir</option>
-          <option value="Izin">Izin</option>
-          <option value="Sakit">Sakit</option>
-        </select>
-        <select id="filterSesi" onchange="filterData()">
-          <option value="">Semua sesi absensi</option>
-        </select>
-        <button class="btn btn-primary" onclick="exportCSV()">CSV</button>
-        <select id="pilihanSalin" style="background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;outline:none;">
-          <optgroup label="— Per status —">
-            <option value="status:semua">Semua status</option>
-            <option value="status:Hadir" selected>Hadir saja</option>
-            <option value="status:Izin">Izin saja</option>
-            <option value="status:Sakit">Sakit saja</option>
-          </optgroup>
-          <optgroup label="— Per sesi absensi —" id="optgroupSesi"></optgroup>
-        </select>
-        <button class="btn btn-ghost" onclick="salinDaftar()">Salin</button>
-      </div>
+          <input type="text" id="filterCari" placeholder="Cari nama atau NIM..." oninput="filterData()" style="flex:1;">
+          <button class="btn btn-ghost" onclick="exportCSV()">⬇ CSV</button>
+          <select id="pilihanSalin" style="background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;outline:none;max-width:140px;">
+            <optgroup label="Per status">
+              <option value="status:semua">Semua</option>
+              <option value="status:Hadir" selected>Hadir saja</option>
+              <option value="status:Izin">Izin saja</option>
+              <option value="status:Sakit">Sakit saja</option>
+            </optgroup>
+            <optgroup label="Per tanggal" id="optgroupTanggal"></optgroup>
+          </select>
+          <button class="btn btn-ghost" onclick="salinDaftar()">Salin</button>
+        </div>
       </div><!-- end panelRekap -->
 
       <!-- Panel Cari Mahasiswa -->
       <div id="panelCari" style="display:none;">
         <div class="filter-row">
-          <input type="text" id="cariMahasiswa" placeholder="Nama atau NIM mahasiswa..." oninput="filterMahasiswa()" style="flex:1;">
-          <select id="filterSesiMahasiswa" onchange="filterMahasiswa()">
-            <option value="">Semua sesi</option>
+          <input type="text" id="cariMahasiswa" placeholder="🔍 Nama atau NIM mahasiswa..." oninput="filterMahasiswa()" style="flex:1;">
+          <select id="filterSesiMahasiswa" onchange="filterMahasiswa()" style="max-width:180px;">
+            <option value="">Semua tanggal</option>
           </select>
         </div>
       </div>
@@ -279,7 +288,7 @@
 
 <script>
 var ADMIN_CONFIG = {
-  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxv7kbrPQshDCBGxXCge_57ExgRiiGssMWTWrM8wVIwO5GGQ0-Sl6mRPQamcPGYMTVLJQ/exec",
+  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzZuQa1pwLdMIJkqybovKX9PWW7oeMRbSQqq2prXCyW-YaqvzACqqJG-7s4X4PmBqryUA/exec",
   PASSWORD: "admin123"
 };
 
@@ -380,7 +389,7 @@ function muatData(incremental) {
           return true;
         });
 
-        isiFilterSesi(dedupRecords);
+        isiFilter(dedupRecords);
         applyFilter();
       } else { throw new Error(res.message); }
     })
@@ -399,41 +408,75 @@ function setMode(mode) {
   applyFilter();
 }
 
-function isiFilterSesi(records) {
-  var sesiSet = {};
-  records.forEach(function(r) { if (r.sesi) sesiSet[r.sesi] = true; });
-
-  // Filter rekap
-  var sel = document.getElementById('filterSesi');
-  var current = sel.value;
-  sel.innerHTML = '<option value="">Semua sesi</option>';
-  Object.keys(sesiSet).forEach(function(s) {
-    var opt = document.createElement('option');
-    opt.value = s; opt.textContent = s;
-    sel.appendChild(opt);
+function isiFilter(records) {
+  // Kumpulkan tanggal unik (urut terbaru dulu) dan mata kuliah unik
+  var tglMap = {}; // tanggal (yyyy-MM-dd) -> label (Senin, 16 Sep 2026)
+  var matkulSet = {};
+  records.forEach(function(r) {
+    if (r.tanggal) tglMap[r.tanggal] = r.tanggalLabel || r.tanggal;
+    if (r.kelas)   matkulSet[r.kelas] = true;
   });
-  sel.value = current;
+  var tglUrut = Object.keys(tglMap).sort().reverse();
 
-  // Filter cari mahasiswa
-  var selM = document.getElementById('filterSesiMahasiswa');
-  var currentM = selM.value;
-  selM.innerHTML = '<option value="">Semua sesi</option>';
-  Object.keys(sesiSet).forEach(function(s) {
+  // Filter tanggal rekap
+  var selTgl = document.getElementById('filterTanggal');
+  var curTgl = selTgl.value;
+  selTgl.innerHTML = '<option value="">Semua tanggal</option>';
+  tglUrut.forEach(function(t) {
     var opt = document.createElement('option');
-    opt.value = s; opt.textContent = s;
+    opt.value = t; opt.textContent = tglMap[t];
+    selTgl.appendChild(opt);
+  });
+  selTgl.value = curTgl;
+
+  // Filter mata kuliah rekap
+  var selMk = document.getElementById('filterMatkul');
+  var curMk = selMk.value;
+  selMk.innerHTML = '<option value="">Semua mata kuliah</option>';
+  Object.keys(matkulSet).forEach(function(m) {
+    var opt = document.createElement('option');
+    opt.value = m; opt.textContent = m;
+    selMk.appendChild(opt);
+  });
+  selMk.value = curMk;
+
+  // Filter tanggal di panel Cari Mahasiswa
+  var selM = document.getElementById('filterSesiMahasiswa');
+  var curM = selM.value;
+  selM.innerHTML = '<option value="">Semua tanggal</option>';
+  tglUrut.forEach(function(t) {
+    var opt = document.createElement('option');
+    opt.value = t; opt.textContent = tglMap[t];
     selM.appendChild(opt);
   });
-  selM.value = currentM;
+  selM.value = curM;
 
-  // Optgroup salin
-  var og = document.getElementById('optgroupSesi');
+  // Optgroup salin per tanggal
+  var og = document.getElementById('optgroupTanggal');
   og.innerHTML = '';
-  Object.keys(sesiSet).forEach(function(s) {
+  tglUrut.forEach(function(t) {
     var opt = document.createElement('option');
-    opt.value = 'sesi:' + s;
-    opt.textContent = s;
+    opt.value = 'tanggal:' + t;
+    opt.textContent = tglMap[t];
     og.appendChild(opt);
   });
+}
+
+// Saat tanggal dipilih, update filter mata kuliah sesuai tanggal itu
+function onTanggalChange() {
+  var tgl = document.getElementById('filterTanggal').value;
+  var selMk = document.getElementById('filterMatkul');
+  var matkulSet = {};
+  dedupRecords.forEach(function(r) {
+    if ((!tgl || r.tanggal === tgl) && r.kelas) matkulSet[r.kelas] = true;
+  });
+  selMk.innerHTML = '<option value="">Semua mata kuliah</option>';
+  Object.keys(matkulSet).forEach(function(m) {
+    var opt = document.createElement('option');
+    opt.value = m; opt.textContent = m;
+    selMk.appendChild(opt);
+  });
+  filterData();
 }
 
 function hitungStat(records) {
@@ -458,7 +501,7 @@ function renderTabel(records) {
   var grup = {};
   var urutan = [];
   records.forEach(function(row) {
-    var key = ss(row.kelas) + ' · ' + ss(row.sesi);
+    var key = ss(row.tanggalLabel || row.tanggal || '') + ' · ' + ss(row.kelas) + ' · ' + ss(row.sesi);
     if (!grup[key]) { grup[key] = []; urutan.push(key); }
     grup[key].push(row);
   });
@@ -499,40 +542,50 @@ function applyFilter() {
 function filterData() {
   var cari   = document.getElementById('filterCari').value.toLowerCase();
   var status = document.getElementById('filterStatus').value;
-  var sesi   = document.getElementById('filterSesi').value;
+  var tgl    = document.getElementById('filterTanggal').value;
+  var matkul = document.getElementById('filterMatkul').value;
+
   var filtered = dedupRecords.filter(function(d) {
     var okCari   = !cari   || (d.nama && d.nama.toLowerCase().indexOf(cari) >= 0) || (d.nim && String(d.nim).toLowerCase().indexOf(cari) >= 0);
     var okStatus = !status || d.status === status;
-    var okSesi   = !sesi   || d.sesi   === sesi;
-    return okCari && okStatus && okSesi;
+    var okTgl    = !tgl    || d.tanggal === tgl;
+    var okMatkul = !matkul || d.kelas   === matkul;
+    return okCari && okStatus && okTgl && okMatkul;
   });
 
-  // Stat cards kontekstual
-  var label = sesi ? sesi : (status ? status : 'Semua data');
-  document.getElementById('statLabel').textContent = label;
+  // Label konteks di stat cards
+  var bagian = [];
+  if (tgl)    bagian.push(document.getElementById('filterTanggal').options[document.getElementById('filterTanggal').selectedIndex].text);
+  if (matkul) bagian.push(matkul);
+  if (status) bagian.push(status);
+  document.getElementById('statLabel').textContent = bagian.length ? bagian.join(' · ') : 'Semua data';
+
   renderTabel(filtered);
   hitungStat(filtered);
 }
 
 function filterMahasiswa() {
   var cari = document.getElementById('cariMahasiswa').value.trim().toLowerCase();
-  var sesi = document.getElementById('filterSesiMahasiswa').value;
+  var tgl  = document.getElementById('filterSesiMahasiswa').value;
 
   if (!cari) {
     renderTabel([]);
     hitungStat([]);
-    document.getElementById('statLabel').textContent = 'Pilih mahasiswa';
+    document.getElementById('statLabel').textContent = 'Ketik nama atau NIM';
     return;
   }
 
   var filtered = dedupRecords.filter(function(d) {
     var okCari = (d.nama && d.nama.toLowerCase().indexOf(cari) >= 0) || (d.nim && String(d.nim).toLowerCase().indexOf(cari) >= 0);
-    var okSesi = !sesi || d.sesi === sesi;
-    return okCari && okSesi;
+    var okTgl  = !tgl || d.tanggal === tgl;
+    return okCari && okTgl;
   });
 
   var label = filtered.length ? (filtered[0].nama || cari) : cari;
-  if (sesi) label += ' · ' + sesi;
+  if (tgl) {
+    var selTgl = document.getElementById('filterSesiMahasiswa');
+    label += ' · ' + selTgl.options[selTgl.selectedIndex].text;
+  }
   document.getElementById('statLabel').textContent = label;
   renderTabel(filtered);
   hitungStat(filtered);
@@ -556,15 +609,20 @@ function salinDaftar() {
   var filter = document.getElementById('pilihanSalin').value;
   var parts  = filter.split(':');
   var tipe   = parts[0];
-  var nilai  = parts[1];
+  var nilai  = parts.slice(1).join(':');
   var sumber;
 
   if (tipe === 'status') {
     sumber = nilai === 'semua' ? dedupRecords : dedupRecords.filter(function(d) { return d.status === nilai; });
-  } else if (tipe === 'sesi') {
-    sumber = dedupRecords.filter(function(d) { return d.sesi === nilai; });
+  } else if (tipe === 'tanggal') {
+    sumber = dedupRecords.filter(function(d) { return d.tanggal === nilai; });
   } else {
     sumber = dedupRecords;
+  }
+
+  // Terapkan filter hadir saja sebagai default
+  if (tipe === 'status' && nilai === 'Hadir') {
+    sumber = sumber.filter(function(d) { return d.status === 'Hadir'; });
   }
 
   if (!sumber.length) { alert('Tidak ada data untuk disalin.'); return; }

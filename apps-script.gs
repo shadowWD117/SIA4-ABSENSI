@@ -72,7 +72,8 @@ function doPost(e) {
         + String(tglRow.getMonth() + 1).padStart(2, '0') + '-'
         + String(tglRow.getDate()).padStart(2, '0');
       return String(row[2]) === String(payload.nim)
-          && row[4] === payload.sesi
+          && String(row[3]) === String(payload.kelas)
+          && String(row[4]) === String(payload.sesi)
           && tglRowStr === hariIni;
     });
 
@@ -128,6 +129,12 @@ function doGet(e) {
           waktu:      row[0] instanceof Date
                         ? Utilities.formatDate(row[0], Session.getScriptTimeZone(), "dd/MM/yyyy, HH.mm.ss")
                         : String(row[0]),
+          tanggal:    row[0] instanceof Date
+                        ? Utilities.formatDate(row[0], Session.getScriptTimeZone(), "yyyy-MM-dd")
+                        : String(row[0]).split(',')[0].trim(),
+          tanggalLabel: row[0] instanceof Date
+                        ? Utilities.formatDate(row[0], Session.getScriptTimeZone(), "EEEE, dd MMM yyyy")
+                        : String(row[0]).split(',')[0].trim(),
           nama:       String(row[1] || ''),
           nim:        String(row[2] || ''),
           kelas:      String(row[3] || ''),
@@ -191,10 +198,11 @@ function doGet(e) {
         return jsonOut({ status: "ok", message: "Sesi dinonaktifkan." });
       }
       // Tambah sesi baru sebagai Aktif
-      // Prefix ' agar Sheets tidak auto-konversi nilai seperti "1.4" ke Date
-      sesiSheet.appendRow([
-        "'" + e.parameter.kelas,
-        "'" + e.parameter.sesi,
+      // Tulis ke baris baru dengan format teks eksplisit agar tidak auto-konversi
+      var newRow = sesiSheet.getLastRow() + 1;
+      sesiSheet.getRange(newRow, 1, 1, 11).setValues([[
+        e.parameter.kelas,
+        e.parameter.sesi,
         parseInt(e.parameter.jamMulai),
         parseInt(e.parameter.menitMulai),
         parseInt(e.parameter.jamSelesai),
@@ -204,7 +212,10 @@ function doGet(e) {
         parseInt(e.parameter.radius),
         "Aktif",
         Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd")
-      ]);
+      ]]);
+      // Paksa kolom Mata Kuliah dan Ruangan sebagai plain text
+      sesiSheet.getRange(newRow, 1).setNumberFormat('@');
+      sesiSheet.getRange(newRow, 2).setNumberFormat('@');
       sesiSheet.autoResizeColumns(1, 11);
 
       return jsonOut({ status: "ok", message: "Sesi berhasil diperbarui." });
@@ -225,7 +236,7 @@ function doGet(e) {
         try {
           tgl = Utilities.formatDate(new Date(rows[i][0]), Session.getScriptTimeZone(), "yyyy-MM-dd");
         } catch(ex) { tgl = String(rows[i][0]).split(' ')[0]; }
-        var key = String(rows[i][2]) + '|' + String(rows[i][4]) + '|' + tgl;
+        var key = String(rows[i][2]) + '|' + String(rows[i][3]) + '|' + String(rows[i][4]) + '|' + tgl;
         if (seen[key]) {
           toDelete.push(i + 1); // +1 karena index sheet mulai dari 1
         } else {
